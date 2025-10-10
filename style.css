@@ -1,0 +1,143 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100%;
+    background-color: gray;
+}
+
+.header {
+    width: 100%;
+    height: 15dvh;
+    background-color: blue;
+    display: flex;
+    justify-content: flex-end;
+
+    ul {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 100%;
+        width: 30%;
+        margin-right: 10px;
+
+        li {
+            list-style: none;
+            transition: 0.4s;
+
+
+        }
+
+        li:hover {
+            cursor: pointer;
+            scale: 1.2;
+
+
+        }
+
+    }
+}
+
+a {
+    text-decoration: none;
+    color: white;
+}
+
+.active {
+    text-decoration: underline;
+}
+
+.game-button-active {
+    background: darkgray;
+}
+
+.correct {
+    background-color: green;
+}
+
+.game-over-message-container {
+    height: 25dvh;
+    background-color: rgb(112, 112, 112);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+}
+
+.game-over-disabled {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    background-color: blue;
+    opacity: 0;
+}
+
+.wrong {
+    background-color: red !important;
+    transition: background-color 0.1s ease;
+}
+
+
+.key-buttons-container {
+    border: 3px solid black;
+    width: fit-content;
+}
+
+
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+button {
+    all: unset;
+}
+
+.note-buttons-container,
+.number-buttons-container,
+.key-buttons-container {
+    display: flex;
+    gap: 10px;
+}
+
+.note-button,
+.number-button,
+.key-button,
+.try-again-button {
+    transition: 0.1s;
+
+}
+
+.note-button:hover,
+.number-button:hover,
+.try-again-button:hover,
+.key-button:hover {
+    background-color: darkgray;
+    cursor: pointer;
+    scale: 1.2;
+}
+
+
+.content-container {
+    flex: 1;
+    padding: 20px
+}
+
+.footer-container {
+    width: 100%;
+    height: 18dvh;
+    background-color: blue;
+}

@@ -1,0 +1,15 @@
+
+-number of wins should be unique for each key
+-maybe have a mistake counter. if more than 3 game resets.
+-(far in future) log in, user can have number of wins for each key which is saved in a db
+-note to number but for various modes also
+-figure out styling
+-fix error messages in NoteExercise and ModeExercise
+
+
+
+flashing wrong made with chatgpt, should try to understand this better. maybe rewrite it from memory
+
+
+
+
