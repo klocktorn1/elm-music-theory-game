@@ -5,18 +5,19 @@ import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import Http
-import Json.Decode as Decode
 import Json.Encode as Encode
 import Process
 import Random
 import Random.List as RandomList
 import Set exposing (Set)
 import Task
+import Game.TheoryApi as TheoryApi
+
 
 
 type alias Model =
-    { chosenScale : Maybe Scale
-    , scales : MajorScales
+    { chosenScale : Maybe TheoryApi.Key
+    , scales : List TheoryApi.Key
     , noteClicked : String
     , score : Int
     , correctPairs : Set CorrectPair
@@ -48,28 +49,13 @@ type Msg
     = NoteClicked Int
     | NumberClicked Int
     | Shuffle
-    | Shuffled (List ( Int, Note ))
-    | FetchScales
-    | ScalesFetched (Result Http.Error (List Scale))
-    | ChooseKey Scale
+    | Shuffled (List ( Int, TheoryApi.Note ))
+    | ScalesFetched (Result Http.Error (List TheoryApi.Key))
+    | ChooseKey TheoryApi.Key
     | Reset Bool
     | GameOver
     | ClearWrongPairs
-    | FlashWrong
-
-
-type alias MajorScales =
-    List Scale
-
-
-type alias Scale =
-    { key : String
-    , notes : List ( Int, Note )
-    }
-
-
-type alias Note =
-    String
+    | FlashWrong    
 
 
 port sendToLocalStorage : String -> Cmd msg
@@ -82,29 +68,14 @@ saveWins numberOfWins =
         |> sendToLocalStorage
 
 
-scaleDecoder : Decode.Decoder Scale
-scaleDecoder =
-    Decode.map2 Scale
-        (Decode.field "key" Decode.string)
-        (Decode.field "notes" (Decode.list Decode.string)
-            |> Decode.map (List.indexedMap Tuple.pair)
-        )
-
 
 fetchScales : Cmd Msg
 fetchScales =
-    Http.get
-        { url = "http://localhost:5019/scales"
-        , expect = Http.expectJson ScalesFetched (Decode.list scaleDecoder)
-        }
+    TheoryApi.fetchScales ScalesFetched
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    let
-        _ =
-            Debug.log "flags" flags
-    in
     ( { chosenScale = Nothing
       , scales = []
       , noteClicked = ""
@@ -168,8 +139,7 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        FetchScales ->
-            ( model, fetchScales )
+
 
         ScalesFetched (Ok scales) ->
             ( { model | scales = scales }, Cmd.none )
@@ -298,7 +268,7 @@ viewGameOverMessage model =
         ]
 
 
-viewKeys : Scale -> Html Msg
+viewKeys : TheoryApi.Key -> Html Msg
 viewKeys scale =
     Html.div [ HA.class "key-button", HE.onClick (ChooseKey scale) ] [ Html.text scale.key ]
 
