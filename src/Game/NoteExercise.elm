@@ -1,6 +1,7 @@
 port module Game.NoteExercise exposing (..)
 
 import Array exposing (Array)
+import Game.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -11,8 +12,6 @@ import Random
 import Random.List as RandomList
 import Set exposing (Set)
 import Task
-import Game.TheoryApi as TheoryApi
-
 
 
 type alias Model =
@@ -21,13 +20,12 @@ type alias Model =
     , noteClicked : String
     , score : Int
     , correctPairs : Set CorrectPair
-    , wrongPairs : Set WrongPair
+    , wrongPairs : Maybe ( Int, Int )
     , noteIndex : Int
     , numberIndex : Int
     , numberOfWins : Int
     , numberOfWrongs : Int
     , isButtonDisabled : Bool
-    , wrongFlashCount : Int
     , gameOver : Bool
     , errorMessage : Maybe String
     }
@@ -54,8 +52,6 @@ type Msg
     | ChooseKey TheoryApi.Key
     | Reset Bool
     | GameOver
-    | ClearWrongPairs
-    | FlashWrong    
 
 
 port sendToLocalStorage : String -> Cmd msg
@@ -66,7 +62,6 @@ saveWins numberOfWins =
     Encode.int numberOfWins
         |> Encode.encode 0
         |> sendToLocalStorage
-
 
 
 fetchScales : Cmd Msg
@@ -81,14 +76,13 @@ init flags =
       , noteClicked = ""
       , score = 0
       , correctPairs = Set.empty
-      , wrongPairs = Set.empty
+      , wrongPairs = Nothing
       , noteIndex = 7
       , numberIndex = 7
       , numberOfWins = String.toInt flags |> Maybe.withDefault 0
       , numberOfWrongs = 0
       , isButtonDisabled = True
       , gameOver = False
-      , wrongFlashCount = 0
       , errorMessage = Nothing
       }
     , Cmd.batch [ fetchScales ]
@@ -101,7 +95,7 @@ update msg model =
         NoteClicked index ->
             let
                 modelWithWrongPairsSetEmpty =
-                    { model | wrongPairs = Set.empty }
+                    { model | wrongPairs = Nothing }
 
                 modelWithNote =
                     { modelWithWrongPairsSetEmpty | noteIndex = index }
@@ -110,9 +104,8 @@ update msg model =
 
         NumberClicked number ->
             let
-
                 modelWithNumber =
-                    { model | numberIndex = number, wrongPairs = Set.empty }
+                    { model | numberIndex = number, wrongPairs = Nothing }
 
                 newModel =
                     checkClickedValues modelWithNumber
@@ -138,8 +131,6 @@ update msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
-
-
 
         ScalesFetched (Ok scales) ->
             ( { model | scales = scales }, Cmd.none )
@@ -171,7 +162,7 @@ update msg model =
                         , noteIndex = 7
                         , numberIndex = 7
                         , correctPairs = Set.empty
-                        , wrongPairs = Set.empty
+                        , wrongPairs = Nothing
                         , numberOfWrongs = 0
                         , gameOver = False
                       }
@@ -188,37 +179,6 @@ update msg model =
         GameOver ->
             ( model, gameOver )
 
-        ClearWrongPairs ->
-            ( { model | wrongPairs = Set.empty }, Cmd.none )
-
-        FlashWrong ->
-            if model.wrongFlashCount < 6 then
-                let
-                    newFlashCount =
-                        model.wrongFlashCount + 1
-
-                    newWrongPairs =
-                        if modBy 2 newFlashCount == 1 then
-                            Set.insert ( model.noteIndex, model.numberIndex ) model.wrongPairs
-
-                        else
-                            Set.empty
-                in
-                ( { model
-                    | wrongPairs = newWrongPairs
-                    , wrongFlashCount = newFlashCount
-                  }
-                , flashWrongAfterDelay
-                )
-
-            else
-                ( { model
-                    | wrongFlashCount = 0
-                    , wrongPairs = Set.empty
-                  }
-                , Cmd.none
-                )
-
 
 view : Model -> Html Msg
 view model =
@@ -227,7 +187,6 @@ view model =
         , Html.div [] [ Html.text "Pick a major scale:" ]
         , Html.text "Pick a key. Match the note with the corresponding number in that scale (C1 D2 E3 F4 G5 A6 B7 in C for example)"
         , Html.div [ HA.class "key-buttons-container" ] (List.map (\key -> viewKeys key) model.scales)
-       
         , case model.chosenScale of
             Just scale ->
                 Html.div []
@@ -247,6 +206,7 @@ view model =
                     , Html.div []
                         [ Html.button [ HE.onClick (Reset True), HA.class "reset-button" ] [ Html.text "Reset" ] ]
                     , viewGameOverMessage model
+                    , Html.text (Debug.toString model.wrongPairs)
                     ]
 
             Nothing ->
@@ -281,12 +241,15 @@ viewNumberButtons model number =
         [ HE.onClick (NumberClicked number)
         , HA.class "number-button"
         , HA.disabled (model.isButtonDisabled || model.gameOver)
-        , HA.classList
-            [ ( "correct", isNumberCorrect model number )
-            , ( "wrong", isNumberWrong model number )
-            ]
         ]
-        [ Html.h1 [] [ Html.text (String.fromInt (number + 1)) ] ]
+        [ Html.h1
+            [ HA.classList
+                [ ( "correct", isNumberCorrect model number )
+                , ( "wrong-" ++ String.fromInt model.numberOfWrongs, isNumberWrong model number ) -- Trying to get it to flash red when pressing the same wrong again
+                ]
+            ]
+            [ Html.text (String.fromInt (number + 1)) ]
+        ]
 
 
 viewScaleButtons : Model -> ( Int, String ) -> Html Msg
@@ -298,14 +261,13 @@ viewScaleButtons model ( originalIndex, note ) =
     Html.button
         [ HE.onClick (NoteClicked originalIndex)
         , HA.disabled model.gameOver
+        , HA.classList
+            [ ( "correct", isNoteCorrect model originalIndex )
+            ]
         ]
         [ Html.h1
             [ HA.class "note-button"
             , HA.classList [ ( "game-button-active", isActive ) ]
-            , HA.classList
-                [ ( "correct", isNoteCorrect model originalIndex )
-                , ( "wrong", isNoteWrong model originalIndex )
-                ]
             ]
             [ Html.text note ]
         ]
@@ -316,11 +278,6 @@ isNoteCorrect model noteIndex =
     Set.member noteIndex (Set.map Tuple.first model.correctPairs)
 
 
-isNoteWrong : Model -> Int -> Bool
-isNoteWrong model noteIndex =
-    Set.member noteIndex (Set.map Tuple.first model.wrongPairs)
-
-
 isNumberCorrect : Model -> Int -> Bool
 isNumberCorrect model number =
     Set.member number (Set.map Tuple.second model.correctPairs)
@@ -328,7 +285,12 @@ isNumberCorrect model number =
 
 isNumberWrong : Model -> Int -> Bool
 isNumberWrong model number =
-    Set.member number (Set.map Tuple.second model.wrongPairs)
+    case model.wrongPairs of
+        Just wrongPairs ->
+            Tuple.second wrongPairs == number
+
+        Nothing ->
+            False
 
 
 checkClickedValues : Model -> ( Model, Cmd Msg )
@@ -363,35 +325,29 @@ checkClickedValues model =
         in
         newModel
 
-    else if Set.size model.wrongPairs == 0 then
+    else if model.wrongPairs == Nothing then
         let
-            newPair =
+            newWrongPair =
                 ( model.noteIndex, model.numberIndex )
 
             newNumberOfWrongs =
                 model.numberOfWrongs + 1
 
             newModel =
-                if Tuple.second newPair == 7 then
+                if Tuple.second newWrongPair == 7 then
                     model
 
                 else
                     { model
-                        | wrongPairs =
-                            Set.insert newPair model.wrongPairs
+                        | wrongPairs = Just newWrongPair
                         , numberOfWrongs = newNumberOfWrongs
-                        , gameOver = newNumberOfWrongs == 3
+                        , gameOver = newNumberOfWrongs == 100
                     }
         in
-        ( newModel, Cmd.batch [ flashWrongAfterDelay ] )
+        ( newModel, Cmd.none )
 
     else
         ( model, Cmd.none )
-
-
-flashWrongAfterDelay : Cmd Msg
-flashWrongAfterDelay =
-    Task.perform (\_ -> FlashWrong) (Process.sleep 200)
 
 
 gameOver : Cmd Msg

@@ -11161,8 +11161,7 @@ var $author$project$Game$NoteExercise$init = function (flags) {
 			numberOfWrongs: 0,
 			scales: _List_Nil,
 			score: 0,
-			wrongFlashCount: 0,
-			wrongPairs: $elm$core$Set$empty
+			wrongPairs: $elm$core$Maybe$Nothing
 		},
 		$elm$core$Platform$Cmd$batch(
 			_List_fromArray(
@@ -11782,14 +11781,6 @@ var $author$project$Game$NoteExercise$Shuffled = function (a) {
 var $author$project$Game$NoteExercise$Reset = function (a) {
 	return {$: 'Reset', a: a};
 };
-var $author$project$Game$NoteExercise$FlashWrong = {$: 'FlashWrong'};
-var $elm$core$Process$sleep = _Process_sleep;
-var $author$project$Game$NoteExercise$flashWrongAfterDelay = A2(
-	$elm$core$Task$perform,
-	function (_v0) {
-		return $author$project$Game$NoteExercise$FlashWrong;
-	},
-	$elm$core$Process$sleep(200));
 var $elm$core$Set$insert = F2(
 	function (key, _v0) {
 		var dict = _v0.a;
@@ -11809,6 +11800,7 @@ var $elm$core$Set$size = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$size(dict);
 };
+var $elm$core$Process$sleep = _Process_sleep;
 var $author$project$Game$NoteExercise$checkClickedValues = function (model) {
 	if (_Utils_eq(model.noteIndex, model.numberIndex)) {
 		var newPair = _Utils_Tuple2(model.noteIndex, model.numberIndex);
@@ -11839,21 +11831,17 @@ var $author$project$Game$NoteExercise$checkClickedValues = function (model) {
 			$elm$core$Platform$Cmd$none);
 		return newModel;
 	} else {
-		if (!$elm$core$Set$size(model.wrongPairs)) {
-			var newPair = _Utils_Tuple2(model.noteIndex, model.numberIndex);
+		if (_Utils_eq(model.wrongPairs, $elm$core$Maybe$Nothing)) {
+			var newWrongPair = _Utils_Tuple2(model.noteIndex, model.numberIndex);
 			var newNumberOfWrongs = model.numberOfWrongs + 1;
-			var newModel = (newPair.b === 7) ? model : _Utils_update(
+			var newModel = (newWrongPair.b === 7) ? model : _Utils_update(
 				model,
 				{
-					gameOver: newNumberOfWrongs === 3,
+					gameOver: newNumberOfWrongs === 100,
 					numberOfWrongs: newNumberOfWrongs,
-					wrongPairs: A2($elm$core$Set$insert, newPair, model.wrongPairs)
+					wrongPairs: $elm$core$Maybe$Just(newWrongPair)
 				});
-			return _Utils_Tuple2(
-				newModel,
-				$elm$core$Platform$Cmd$batch(
-					_List_fromArray(
-						[$author$project$Game$NoteExercise$flashWrongAfterDelay])));
+			return _Utils_Tuple2(newModel, $elm$core$Platform$Cmd$none);
 		} else {
 			return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 		}
@@ -11865,7 +11853,6 @@ var $author$project$Game$NoteExercise$gameOver = A2(
 		return $author$project$Game$NoteExercise$Reset(false);
 	},
 	$elm$core$Process$sleep(0));
-var $elm$core$Basics$modBy = _Basics_modBy;
 var $elm$random$Random$maxInt = 2147483647;
 var $elm$random$Random$minInt = -2147483648;
 var $elm_community$random_extra$Random$List$anyInt = A2($elm$random$Random$int, $elm$random$Random$minInt, $elm$random$Random$maxInt);
@@ -11943,7 +11930,7 @@ var $author$project$Game$NoteExercise$update = F2(
 				var index = msg.a;
 				var modelWithWrongPairsSetEmpty = _Utils_update(
 					model,
-					{wrongPairs: $elm$core$Set$empty});
+					{wrongPairs: $elm$core$Maybe$Nothing});
 				var modelWithNote = _Utils_update(
 					modelWithWrongPairsSetEmpty,
 					{noteIndex: index});
@@ -11956,7 +11943,7 @@ var $author$project$Game$NoteExercise$update = F2(
 				var number = msg.a;
 				var modelWithNumber = _Utils_update(
 					model,
-					{numberIndex: number, wrongPairs: $elm$core$Set$empty});
+					{numberIndex: number, wrongPairs: $elm$core$Maybe$Nothing});
 				var newModel = $author$project$Game$NoteExercise$checkClickedValues(modelWithNumber);
 				return newModel;
 			case 'Shuffle':
@@ -12035,7 +12022,7 @@ var $author$project$Game$NoteExercise$update = F2(
 								noteIndex: 7,
 								numberIndex: 7,
 								numberOfWrongs: 0,
-								wrongPairs: $elm$core$Set$empty
+								wrongPairs: $elm$core$Maybe$Nothing
 							}),
 						shuffle ? A2(
 							$elm$random$Random$generate,
@@ -12044,33 +12031,8 @@ var $author$project$Game$NoteExercise$update = F2(
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
-			case 'GameOver':
-				return _Utils_Tuple2(model, $author$project$Game$NoteExercise$gameOver);
-			case 'ClearWrongPairs':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{wrongPairs: $elm$core$Set$empty}),
-					$elm$core$Platform$Cmd$none);
 			default:
-				if (model.wrongFlashCount < 6) {
-					var newFlashCount = model.wrongFlashCount + 1;
-					var newWrongPairs = (A2($elm$core$Basics$modBy, 2, newFlashCount) === 1) ? A2(
-						$elm$core$Set$insert,
-						_Utils_Tuple2(model.noteIndex, model.numberIndex),
-						model.wrongPairs) : $elm$core$Set$empty;
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{wrongFlashCount: newFlashCount, wrongPairs: newWrongPairs}),
-						$author$project$Game$NoteExercise$flashWrongAfterDelay);
-				} else {
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{wrongFlashCount: 0, wrongPairs: $elm$core$Set$empty}),
-						$elm$core$Platform$Cmd$none);
-				}
+				return _Utils_Tuple2(model, $author$project$Game$NoteExercise$gameOver);
 		}
 	});
 var $author$project$Main$update = F2(
@@ -12432,6 +12394,7 @@ var $author$project$Game$ModeExercise$view = function (model) {
 			]));
 };
 var $elm$html$Html$br = _VirtualDom_node('br');
+var $elm$core$Debug$toString = _Debug_toString;
 var $author$project$Game$NoteExercise$GameOver = {$: 'GameOver'};
 var $author$project$Game$NoteExercise$viewGameOverMessage = function (model) {
 	return A2(
@@ -12552,10 +12515,13 @@ var $author$project$Game$NoteExercise$isNumberCorrect = F2(
 	});
 var $author$project$Game$NoteExercise$isNumberWrong = F2(
 	function (model, number) {
-		return A2(
-			$elm$core$Set$member,
-			number,
-			A2($elm$core$Set$map, $elm$core$Tuple$second, model.wrongPairs));
+		var _v0 = model.wrongPairs;
+		if (_v0.$ === 'Just') {
+			var wrongPairs = _v0.a;
+			return _Utils_eq(wrongPairs.b, number);
+		} else {
+			return false;
+		}
 	});
 var $author$project$Game$NoteExercise$viewNumberButtons = F2(
 	function (model, number) {
@@ -12566,23 +12532,25 @@ var $author$project$Game$NoteExercise$viewNumberButtons = F2(
 					$elm$html$Html$Events$onClick(
 					$author$project$Game$NoteExercise$NumberClicked(number)),
 					$elm$html$Html$Attributes$class('number-button'),
-					$elm$html$Html$Attributes$disabled(model.isButtonDisabled || model.gameOver),
-					$elm$html$Html$Attributes$classList(
-					_List_fromArray(
-						[
-							_Utils_Tuple2(
-							'correct',
-							A2($author$project$Game$NoteExercise$isNumberCorrect, model, number)),
-							_Utils_Tuple2(
-							'wrong',
-							A2($author$project$Game$NoteExercise$isNumberWrong, model, number))
-						]))
+					$elm$html$Html$Attributes$disabled(model.isButtonDisabled || model.gameOver)
 				]),
 			_List_fromArray(
 				[
 					A2(
 					$elm$html$Html$h1,
-					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$classList(
+							_List_fromArray(
+								[
+									_Utils_Tuple2(
+									'correct',
+									A2($author$project$Game$NoteExercise$isNumberCorrect, model, number)),
+									_Utils_Tuple2(
+									'wrong-' + $elm$core$String$fromInt(model.numberOfWrongs),
+									A2($author$project$Game$NoteExercise$isNumberWrong, model, number))
+								]))
+						]),
 					_List_fromArray(
 						[
 							$elm$html$Html$text(
@@ -12600,13 +12568,6 @@ var $author$project$Game$NoteExercise$isNoteCorrect = F2(
 			noteIndex,
 			A2($elm$core$Set$map, $elm$core$Tuple$first, model.correctPairs));
 	});
-var $author$project$Game$NoteExercise$isNoteWrong = F2(
-	function (model, noteIndex) {
-		return A2(
-			$elm$core$Set$member,
-			noteIndex,
-			A2($elm$core$Set$map, $elm$core$Tuple$first, model.wrongPairs));
-	});
 var $author$project$Game$NoteExercise$viewScaleButtons = F2(
 	function (model, _v0) {
 		var originalIndex = _v0.a;
@@ -12618,7 +12579,14 @@ var $author$project$Game$NoteExercise$viewScaleButtons = F2(
 				[
 					$elm$html$Html$Events$onClick(
 					$author$project$Game$NoteExercise$NoteClicked(originalIndex)),
-					$elm$html$Html$Attributes$disabled(model.gameOver)
+					$elm$html$Html$Attributes$disabled(model.gameOver),
+					$elm$html$Html$Attributes$classList(
+					_List_fromArray(
+						[
+							_Utils_Tuple2(
+							'correct',
+							A2($author$project$Game$NoteExercise$isNoteCorrect, model, originalIndex))
+						]))
 				]),
 			_List_fromArray(
 				[
@@ -12631,16 +12599,6 @@ var $author$project$Game$NoteExercise$viewScaleButtons = F2(
 							_List_fromArray(
 								[
 									_Utils_Tuple2('game-button-active', isActive)
-								])),
-							$elm$html$Html$Attributes$classList(
-							_List_fromArray(
-								[
-									_Utils_Tuple2(
-									'correct',
-									A2($author$project$Game$NoteExercise$isNoteCorrect, model, originalIndex)),
-									_Utils_Tuple2(
-									'wrong',
-									A2($author$project$Game$NoteExercise$isNoteWrong, model, originalIndex))
 								]))
 						]),
 					_List_fromArray(
@@ -12766,7 +12724,9 @@ var $author$project$Game$NoteExercise$view = function (model) {
 												$elm$html$Html$text('Reset')
 											]))
 									])),
-								$author$project$Game$NoteExercise$viewGameOverMessage(model)
+								$author$project$Game$NoteExercise$viewGameOverMessage(model),
+								$elm$html$Html$text(
+								$elm$core$Debug$toString(model.wrongPairs))
 							]));
 				} else {
 					return A2($elm$html$Html$div, _List_Nil, _List_Nil);
@@ -12862,4 +12822,4 @@ var $author$project$Main$main = $elm$browser$Browser$application(
 		update: $author$project$Main$update,
 		view: $author$project$Main$view
 	});
-_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"},"Game.TheoryApi.Key":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Game.TheoryApi.Note ) }"},"Game.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Game.TheoryApi.Modes":{"args":[],"type":"List.List Game.TheoryApi.Mode"},"Game.TheoryApi.Note":{"args":[],"type":"String.String"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Game.NoteExercise.Msg"],"ModeExerciseMsg":["Game.ModeExercise.Msg"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Game.ModeExercise.Msg":{"args":[],"tags":{"ModesFetched":["Result.Result Http.Error Game.TheoryApi.Modes"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"]}},"Game.NoteExercise.Msg":{"args":[],"tags":{"NoteClicked":["Basics.Int"],"NumberClicked":["Basics.Int"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Game.TheoryApi.Note )"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"Reset":["Basics.Bool"],"GameOver":[],"ClearWrongPairs":[],"FlashWrong":[]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"List.List":{"args":["a"],"tags":{}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}}}}})}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"},"Game.TheoryApi.Key":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Game.TheoryApi.Note ) }"},"Game.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Game.TheoryApi.Modes":{"args":[],"type":"List.List Game.TheoryApi.Mode"},"Game.TheoryApi.Note":{"args":[],"type":"String.String"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Game.NoteExercise.Msg"],"ModeExerciseMsg":["Game.ModeExercise.Msg"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Game.ModeExercise.Msg":{"args":[],"tags":{"ModesFetched":["Result.Result Http.Error Game.TheoryApi.Modes"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"]}},"Game.NoteExercise.Msg":{"args":[],"tags":{"NoteClicked":["Basics.Int"],"NumberClicked":["Basics.Int"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Game.TheoryApi.Note )"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"Reset":["Basics.Bool"],"GameOver":[]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"List.List":{"args":["a"],"tags":{}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}}}}})}});}(this));
