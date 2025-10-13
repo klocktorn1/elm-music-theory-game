@@ -178,7 +178,7 @@ viewScale model =
                 , viewModes model
                 , Html.p [] [ Html.text ("Score: " ++ String.fromInt model.score) ]
                 , Html.text model.resultMessage
-                , Html.p [] [ Html.text ("For debugging, correct answer is: " ++ model.randomizedMode.mode) ]
+                , Html.p [] [ Html.text ("For testing, correct answer is: " ++ model.randomizedMode.mode) ]
                 ]
 
         Nothing ->

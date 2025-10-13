@@ -12407,7 +12407,7 @@ var $author$project$Game$ModeExercise$viewScale = function (model) {
 					_List_Nil,
 					_List_fromArray(
 						[
-							$elm$html$Html$text('For debugging, correct answer is: ' + model.randomizedMode.mode)
+							$elm$html$Html$text('For testing, correct answer is: ' + model.randomizedMode.mode)
 						]))
 				]));
 	} else {
@@ -12673,6 +12673,7 @@ var $author$project$Game$NoteExercise$view = function (model) {
 					[
 						$elm$html$Html$text('Pick a major scale:')
 					])),
+				$elm$html$Html$text('Pick a key. Match the note with the corresponding number in that scale (C1 D2 E3 F4 G5 A6 B7 in C for example)'),
 				A2(
 				$elm$html$Html$div,
 				_List_fromArray(

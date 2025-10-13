@@ -225,7 +225,9 @@ view model =
     Html.div []
         [ Html.div [ HA.classList [ ( "game-over-disabled", model.gameOver ) ] ] []
         , Html.div [] [ Html.text "Pick a major scale:" ]
+        , Html.text "Pick a key. Match the note with the corresponding number in that scale (C1 D2 E3 F4 G5 A6 B7 in C for example)"
         , Html.div [ HA.class "key-buttons-container" ] (List.map (\key -> viewKeys key) model.scales)
+       
         , case model.chosenScale of
             Just scale ->
                 Html.div []
