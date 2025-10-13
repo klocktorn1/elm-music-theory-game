@@ -40,10 +40,6 @@ type alias Flags =
 
 
 {-
-   todo friday: fetch scales from api and use the mode formulas to construct the modes.
-   aeolian formula looks like this: [0,0,-1,0,0,-1,-1] and c major scale : [C, D, E, F, G, A, B,]
-   so i need to create a function that takes each number from the formula list and adds a flat (b)
-   to each note that should be flattened
 
 
    User chooses key ->
