@@ -8,12 +8,14 @@ import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import Http
+import Process
 import Random
+import Task
 
 
 type alias Model =
-    { value : String
-    , modes : Maybe TheoryApi.Modes
+    { modes : Maybe TheoryApi.Modes
+    , chosenGameMode : Maybe GameMode
     , keys : Maybe (List TheoryApi.Key)
     , chosenKey : Maybe TheoryApi.Key
     , randomizedMode : TheoryApi.Mode
@@ -21,33 +23,54 @@ type alias Model =
     , keysErrorMessage : Maybe String
     , modeGuessed : Maybe String
     , isCorrect : Bool
+    , isWrong : Bool
     , score : Int
     , resultMessage : String
+    , numberOfWrongs : Int
     }
 
 
 type Msg
     = ModesFetched (Result Http.Error TheoryApi.Modes)
+    | ChooseGame GameMode
     | ScalesFetched (Result Http.Error (List TheoryApi.Key))
     | ChooseKey TheoryApi.Key
     | PickRandomMode Int
     | ModeGuessed String
+    | RandomizeMode
+    | ResetWrong
+    | GoBack
 
 
 type alias Flags =
     String
 
 
+type GameMode
+    = ModeGuesserGame
+    | ModeBuilderGame
+
+
 
 {-
 
 
-   User chooses key ->
-   random mode is applied to that key ->
-   major scale with mode applied to is rendered on screen ->
-   all seven modes are rendered on screen as buttons ->
-   user clicks which mode they think is correct ->
-   check if user is correct or not
+      User chooses key
+   -> random mode is applied to that key
+   -> major scale with mode applied to is rendered on screen
+   -> all seven modes are rendered on screen as buttons
+   -> user clicks which mode they think is correct
+   -> check if user is correct or not
+
+
+   another mode game:
+
+      User chooses key (example C)
+   -> Randomized mode is assigned (Example dorian)
+   -> All notes that exist are rendered (A to G including flats and sharps)
+   -> User gets prompted to build the dorian scale in C
+   -> User has to press the notes in the correct order.
+   -> When dorian mode is assembled correctly, score incremented
 
 -}
 
@@ -64,8 +87,8 @@ fetchModes =
 
 init : Flags -> ( Model, Cmd Msg )
 init _ =
-    ( { value = ""
-      , modes = Nothing
+    ( { modes = Nothing
+      , chosenGameMode = Nothing
       , keys = Nothing
       , chosenKey = Nothing
       , randomizedMode = { mode = "No mode randomized yet", formula = [] }
@@ -73,8 +96,10 @@ init _ =
       , keysErrorMessage = Nothing
       , modeGuessed = Nothing
       , isCorrect = False
+      , isWrong = False
       , score = 0
       , resultMessage = ""
+      , numberOfWrongs = 0
       }
     , Cmd.batch [ fetchScales, fetchModes ]
     )
@@ -83,6 +108,12 @@ init _ =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ChooseGame gameMode ->
+            ( { model | chosenGameMode = Just gameMode }, Cmd.none )
+
+        GoBack ->
+            ( { model | chosenGameMode = Nothing }, Cmd.none )
+
         ModesFetched (Ok modes) ->
             ( { model | modes = Just modes }, Cmd.none )
 
@@ -106,7 +137,7 @@ update msg model =
             ( newModel, randomizeMode )
 
         PickRandomMode randomIndex ->
-            ( { model | randomizedMode = pickRandomMode model.modes randomIndex }, Cmd.none )
+            ( { model | randomizedMode = pickRandomMode model.modes randomIndex, isCorrect = False }, Cmd.none )
 
         ModeGuessed mode ->
             let
@@ -117,6 +148,12 @@ update msg model =
                     checkIfCorrect modelWithModeGuessed
             in
             modelWithResult
+
+        RandomizeMode ->
+            ( model, randomizeMode )
+
+        ResetWrong ->
+            ( { model | isWrong = False }, Cmd.none )
 
 
 buildErrorMessage : Http.Error -> String
@@ -160,16 +197,42 @@ pickRandomMode maybeModes randomIndex =
 view : Model -> Html Msg
 view model =
     Html.div []
-        [ Html.text """Choose a key below. A randomized mode 
-                        (ionian, dorian, phrygian, lydian, mixolydian, aeolian or locrian) 
-                        will be applied to the chosen key. Choose which mode is correct."""
-        , viewKeysOrError model
-        , viewScale model
+        [ case model.chosenGameMode of
+            Just ModeGuesserGame ->
+                Html.div []
+                    [ Html.text """Choose a key below. A randomized mode 
+                            (ionian, dorian, phrygian, lydian, mixolydian, aeolian or locrian) 
+                            will be applied to the chosen key. Choose which mode is correct."""
+                    , viewKeysOrError model
+                    , viewModeGuesserGame model
+                    , Html.button [ HA.class "key-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
+                    ]
+
+            Just ModeBuilderGame ->
+                Html.div []
+                    [ Html.button [ HA.class "key-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
+                    , viewModeBuilderGame model
+                    ]
+
+            Nothing ->
+                Html.div []
+                    [ Html.text "Please choose a game mode"
+                    , Html.div []
+                        [ Html.button [ HE.onClick (ChooseGame ModeGuesserGame), HA.class "key-button" ] [ Html.text "Guess the mode" ]
+                        , Html.br [] []
+                        , Html.button [ HA.class "key-button", HE.onClick (ChooseGame ModeBuilderGame) ] [ Html.text "Build the mode" ]
+                        ]
+                    ]
         ]
 
 
-viewScale : Model -> Html Msg
-viewScale model =
+viewModeBuilderGame : Model -> Html Msg
+viewModeBuilderGame model =
+    Html.div [] []
+
+
+viewModeGuesserGame : Model -> Html Msg
+viewModeGuesserGame model =
     case model.chosenKey of
         Just chosenKey ->
             Html.div []
@@ -178,7 +241,15 @@ viewScale model =
                 , viewModes model
                 , Html.p [] [ Html.text ("Score: " ++ String.fromInt model.score) ]
                 , Html.text model.resultMessage
+                , Html.p [] [ Html.text ("Mistakes: " ++ String.fromInt model.numberOfWrongs) ]
+                , Html.br [] []
+                , Html.br [] []
+                , Html.br [] []
+                , Html.br [] []
                 , Html.p [] [ Html.text ("For testing, correct answer is: " ++ model.randomizedMode.mode) ]
+                , Html.p [] [ Html.text (Debug.toString (model.modeGuessed == Just model.randomizedMode.mode)) ]
+                , Html.p [] [ Html.text ("modeGuessed:     " ++ Debug.toString model.modeGuessed) ]
+                , Html.p [] [ Html.text ("randomizedMode:     " ++ Debug.toString model.randomizedMode.mode) ]
                 ]
 
         Nothing ->
@@ -189,15 +260,34 @@ viewModes : Model -> Html Msg
 viewModes model =
     case model.modes of
         Just modes ->
-            Html.div [] (List.map viewModeButton modes)
+            Html.div [] (List.map (viewModeButton model) modes)
 
         Nothing ->
             Html.div [] []
 
 
-viewModeButton : TheoryApi.Mode -> Html Msg
-viewModeButton mode =
-    Html.button [ HE.onClick (ModeGuessed mode.mode), HA.class "key-button", HA.style "margin-right" "20px" ] [ Html.text mode.mode ]
+viewModeButton : Model -> TheoryApi.Mode -> Html Msg
+viewModeButton model mode =
+    Html.button
+        [ HA.classList
+            [ ( "correct", isModeCorrect model mode.mode )
+            , ( "wrong-" ++ String.fromInt model.numberOfWrongs, isModeWrong model mode.mode )
+            ]
+        , HE.onClick (ModeGuessed mode.mode)
+        , HA.class "key-button"
+        , HA.style "margin-right" "20px"
+        ]
+        [ Html.text mode.mode ]
+
+
+isModeCorrect : Model -> String -> Bool
+isModeCorrect model modeName =
+    model.isCorrect && (modeName == model.randomizedMode.mode)
+
+
+isModeWrong : Model -> String -> Bool
+isModeWrong model modeName =
+    model.isWrong && (model.modeGuessed == Just modeName)
 
 
 viewConstructedMode : TheoryApi.Key -> List String -> Html Msg
@@ -265,10 +355,30 @@ constructScale mode key =
 checkIfCorrect : Model -> ( Model, Cmd Msg )
 checkIfCorrect model =
     if model.modeGuessed == Just model.randomizedMode.mode then
-        ( { model | score = model.score + 1, isCorrect = True, resultMessage = "Correct!" }, randomizeMode )
+        ( { model
+            | score = model.score + 1
+            , isCorrect = True
+            , resultMessage = "Correct!"
+            , isWrong = False
+          }
+        , Task.perform (\_ -> RandomizeMode) (Process.sleep 500)
+        )
 
     else
-        ( { model | resultMessage = "Wrong, try again." }, Cmd.none )
+        let
+            newNumberOfWrongs =
+                model.numberOfWrongs + 1
+
+            resetCmd =
+                Task.perform (\_ -> ResetWrong) (Process.sleep 500)
+        in
+        ( { model
+            | resultMessage = "Wrong, try again."
+            , isWrong = True
+            , numberOfWrongs = newNumberOfWrongs
+          }
+        , resetCmd
+        )
 
 
 randomizeMode : Cmd Msg
@@ -284,60 +394,3 @@ main =
         , view = view
         , subscriptions = \_ -> Sub.none
         }
-
-
-
-{-
-
-         viewScaleOrError : Model -> Html Msg
-         viewScaleOrError model =
-             case ( model.chosenKey, model.modes ) of
-                 ( Just chosenKey, Just modes ) ->
-                     Html.div []
-                         ((chosenKey
-                             |> notesToListString
-                             |> constructScale modes.formula
-                             |> List.map viewConstructedScale
-                          )
-                             ++ [ Html.text (Debug.toString (List.map String.length (notesToListString chosenKey))) ]
-                         )
-
-                 -- (List.map viewConstructedScale (constructScale (notesToListString chosenKey) modes.aeolian)) <-- i find this easier to understand
-                 _ ->
-                     Html.div [] [ Html.text "viewScaleOrError Nothing" ]
-
-
-      viewKeys : Maybe (List TheoryApi.Key) -> Html Msg
-      viewKeys keys =
-          case keys of
-              Just allKeys ->
-                  Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons allKeys)
-
-              Nothing ->
-                  Html.div [] [ Html.text "something else" ]
-
-
-      viewKeyButtons : TheoryApi.Key -> Html Msg
-      viewKeyButtons key =
-          Html.div []
-              [ Html.div [ HA.class "key-button", HE.onClick (ChooseKey key) ]
-                  [ Html.text key.key
-                  ]
-              ]
-
-
-   viewKeysOrError : Model -> Html Msg
-   viewKeysOrError model =
-       case model.scalesErrorMessage of
-           Just error ->
-               Html.div []
-                   [ Html.text error ]
-
-           Nothing ->
-               Html.div []
-                   [ viewKeys model.scales ]
-
-
-
-
--}

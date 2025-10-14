@@ -261,15 +261,16 @@ viewScaleButtons model ( originalIndex, note ) =
     Html.button
         [ HE.onClick (NoteClicked originalIndex)
         , HA.disabled model.gameOver
-        , HA.classList
-            [ ( "correct", isNoteCorrect model originalIndex )
-            ]
         ]
         [ Html.h1
             [ HA.class "note-button"
-            , HA.classList [ ( "game-button-active", isActive ) ]
+            , HA.classList
+                [ ( "correct", isNoteCorrect model originalIndex )
+                , ( "game-button-active", isActive )
+                ]
             ]
-            [ Html.text note ]
+            [ Html.text note
+            ]
         ]
 
 
@@ -279,8 +280,8 @@ isNoteCorrect model noteIndex =
 
 
 isNumberCorrect : Model -> Int -> Bool
-isNumberCorrect model number =
-    Set.member number (Set.map Tuple.second model.correctPairs)
+isNumberCorrect model numberIndex =
+    Set.member numberIndex (Set.map Tuple.second model.correctPairs)
 
 
 isNumberWrong : Model -> Int -> Bool

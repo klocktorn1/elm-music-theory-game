@@ -49,7 +49,7 @@ a {
 }
 
 .correct {
-  background-color: green;
+  background-color: green !important;
 }
 
 .game-over-message-container {
@@ -87,7 +87,7 @@ a {
     background-color: red;
   }
   to {
-    background-color: gray;
+    background-color: inherit;
   }
 }
 
@@ -124,7 +124,6 @@ button {
 .number-button:hover,
 .try-again-button:hover,
 .key-button:hover {
-  background-color: darkgray;
   cursor: pointer;
   scale: 1.2;
 }
