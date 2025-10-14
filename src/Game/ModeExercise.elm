@@ -54,6 +54,7 @@ type GameMode
 
 {-
 
+    Mode guesser game:
 
       User chooses key
    -> random mode is applied to that key
@@ -63,7 +64,7 @@ type GameMode
    -> check if user is correct or not
 
 
-   another mode game:
+   Mode builder game:
 
       User chooses key (example C)
    -> Randomized mode is assigned (Example dorian)
@@ -236,8 +237,7 @@ viewModeGuesserGame model =
     case model.chosenKey of
         Just chosenKey ->
             Html.div []
-                [ viewConstructedMode chosenKey
-                    model.randomizedMode.formula
+                [ viewConstructedMode chosenKey model.randomizedMode.formula
                 , viewModes model
                 , Html.p [] [ Html.text ("Score: " ++ String.fromInt model.score) ]
                 , Html.text model.resultMessage
@@ -292,14 +292,14 @@ isModeWrong model modeName =
 
 viewConstructedMode : TheoryApi.Key -> List String -> Html Msg
 viewConstructedMode chosenKey mode =
-    Html.div []
-        [ Html.div []
+    Html.div [ HA.class "mode-container" ]
+        (List.append [ Html.text "Mode: " ]
             (chosenKey
                 |> notesToListString
                 |> constructScale mode
                 |> List.map viewConstructedScale
             )
-        ]
+        )
 
 
 viewKeysOrError : Model -> Html Msg

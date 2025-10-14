@@ -14,6 +14,20 @@ import Set exposing (Set)
 import Task
 
 
+{-
+   maybe change so that only one random note from the scale is shown instead
+
+   example:
+
+    User chooses key
+    -> Scale degrees (1-7) are rendered on screen
+    -> One note from that scale is shown with prompt: Which scale degree is "NOTE" in "KEY" major scale? 
+    -> User presses the number they think is correct
+
+
+-}
+
+
 type alias Model =
     { chosenScale : Maybe TheoryApi.Key
     , scales : List TheoryApi.Key

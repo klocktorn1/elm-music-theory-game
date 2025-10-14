@@ -12354,20 +12354,23 @@ var $author$project$Game$ModeExercise$viewConstructedMode = F2(
 	function (chosenKey, mode) {
 		return A2(
 			$elm$html$Html$div,
-			_List_Nil,
 			_List_fromArray(
 				[
+					$elm$html$Html$Attributes$class('mode-container')
+				]),
+			A2(
+				$elm$core$List$append,
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Mode: ')
+					]),
+				A2(
+					$elm$core$List$map,
+					$author$project$Game$ModeExercise$viewConstructedScale,
 					A2(
-					$elm$html$Html$div,
-					_List_Nil,
-					A2(
-						$elm$core$List$map,
-						$author$project$Game$ModeExercise$viewConstructedScale,
-						A2(
-							$author$project$Game$ModeExercise$constructScale,
-							mode,
-							$author$project$Game$ModeExercise$notesToListString(chosenKey))))
-				]));
+						$author$project$Game$ModeExercise$constructScale,
+						mode,
+						$author$project$Game$ModeExercise$notesToListString(chosenKey)))));
 	});
 var $author$project$Game$ModeExercise$ModeGuessed = function (a) {
 	return {$: 'ModeGuessed', a: a};

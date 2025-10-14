@@ -78,6 +78,13 @@ a {
   opacity: 0;
 }
 
+.mode-container {
+  display: flex;
+  gap: 20px;
+  margin-top: 50px;
+  margin-bottom: 10px;
+}
+
 [class^="wrong"] {
   animation: wrongAnimation 0.5s ease-out;
 }
