@@ -16,18 +16,9 @@ import Task
 
 
 {-
-   maybe change so that only one random note from the scale is shown instead
 
-   example:
-
-    User chooses key
-    -> Scale degrees (1-7) are rendered on screenma
-    -> One note from that scale is shown with prompt: Which scale degree is "NOTE" in "KEY" major scale?
-    -> User presses the number they think is correct
-
-
-    isNoteVisible = False
-    ->
+    when clicking the same wron two times in a row it doesnt go red.
+    when clicking the third mistake and game ends button doesnt go red
 
 
 -}
@@ -36,18 +27,19 @@ import Task
 type alias Model =
     { chosenScale : Maybe TheoryApi.Key
     , scales : List TheoryApi.Key
-    , noteClicked : String
     , score : Int
     , correctPairs : Set CorrectPair
-    , wrongPairs : Maybe ( Int, Int )
-    , noteIndex : Int
+    , wrongPair : Maybe ( Int, Int )
     , numberIndex : Int
     , numberOfWins : Int
     , numberOfWrongs : Int
     , isButtonDisabled : Bool
     , gameOver : Bool
+    , userWins : Bool
     , errorMessage : Maybe String
     , exerciseStep : Int
+    , noteAndOriginalIndexTuplePrompted : Maybe ( Int, TheoryApi.Note )
+    , result : Maybe GameFinished
     }
 
 
@@ -64,14 +56,17 @@ type alias WrongPair =
 
 
 type Msg
-    = NoteClicked Int
-    | NumberClicked Int
+    = NumberClicked Int
     | Shuffle
     | Shuffled (List ( Int, TheoryApi.Note ))
     | ScalesFetched (Result Http.Error (List TheoryApi.Key))
     | ChooseKey TheoryApi.Key
     | Reset Bool
-    | GameOver
+
+
+type GameFinished
+    = Win
+    | Lose
 
 
 port sendToLocalStorage : String -> Cmd msg
@@ -93,18 +88,19 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { chosenScale = Nothing
       , scales = []
-      , noteClicked = ""
       , score = 0
       , correctPairs = Set.empty
-      , wrongPairs = Nothing
-      , noteIndex = 7
+      , wrongPair = Nothing
       , numberIndex = 7
       , numberOfWins = String.toInt flags |> Maybe.withDefault 0
       , numberOfWrongs = 0
       , isButtonDisabled = True
       , gameOver = False
+      , userWins = False
       , errorMessage = Nothing
       , exerciseStep = 0
+      , noteAndOriginalIndexTuplePrompted = Nothing
+      , result = Nothing
       }
     , Cmd.batch [ fetchScales ]
     )
@@ -113,20 +109,10 @@ init flags =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NoteClicked index ->
-            let
-                modelWithWrongPairsSetEmpty =
-                    { model | wrongPairs = Nothing }
-
-                modelWithNote =
-                    { modelWithWrongPairsSetEmpty | noteIndex = index }
-            in
-            ( { modelWithNote | isButtonDisabled = False }, Cmd.none )
-
         NumberClicked number ->
             let
                 modelWithNumber =
-                    { model | numberIndex = number, wrongPairs = Nothing }
+                    { model | numberIndex = number, wrongPair = Nothing }
 
                 newModel =
                     checkClickedValues modelWithNumber
@@ -147,8 +133,25 @@ update msg model =
                     let
                         newScale =
                             { scale | notes = newNotes }
+
+                        maybeFirstNote =
+                            List.head newNotes
                     in
-                    ( { model | chosenScale = Just newScale }, Cmd.none )
+                    case maybeFirstNote of
+                        Just firstNote ->
+                            ( { model
+                                | chosenScale = Just newScale
+                                , noteAndOriginalIndexTuplePrompted = Just firstNote
+                                , exerciseStep = 0
+                                , correctPairs = Set.empty
+                                , wrongPair = Nothing
+                                , numberIndex = 7
+                              }
+                            , Cmd.none
+                            )
+
+                        Nothing ->
+                            ( model, Cmd.none )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -164,10 +167,13 @@ update msg model =
                 newModel =
                     ( { model
                         | chosenScale = Just scale
-                        , noteClicked = ""
-                        , noteIndex = 7
+                        , score = 0
                         , numberIndex = 7
                         , correctPairs = Set.empty
+                        , wrongPair = Nothing
+                        , numberOfWrongs = 0
+                        , gameOver = False
+                        , noteAndOriginalIndexTuplePrompted = Nothing
                       }
                     , Random.generate Shuffled (RandomList.shuffle scale.notes)
                     )
@@ -177,15 +183,19 @@ update msg model =
         Reset shuffle ->
             case model.chosenScale of
                 Just scale ->
+                    let
+                        firstNote =
+                            List.head scale.notes
+                    in
                     ( { model
                         | chosenScale = Just scale
-                        , noteClicked = ""
-                        , noteIndex = 7
                         , numberIndex = 7
                         , correctPairs = Set.empty
-                        , wrongPairs = Nothing
+                        , wrongPair = Nothing
                         , numberOfWrongs = 0
                         , gameOver = False
+                        , noteAndOriginalIndexTuplePrompted = firstNote
+                        , exerciseStep = 0
                       }
                     , if shuffle then
                         Random.generate Shuffled (RandomList.shuffle scale.notes)
@@ -196,9 +206,6 @@ update msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
-
-        GameOver ->
-            ( model, gameOver )
 
 
 view : Model -> Html Msg
@@ -216,8 +223,7 @@ view model =
 
                       else
                         Html.text ""
-                    , Html.div [ HA.class "note-buttons-container" ]
-                        (List.map (\note -> viewScaleButtons model note) scale.notes)
+                    , Html.div [ HA.class "note-buttons-container" ] [ viewNotePrompted model ]
                     , Html.div [ HA.class "number-buttons-container" ]
                         (List.indexedMap (\index _ -> viewNumberButtons model index) [ 1, 2, 3, 4, 5, 6, 7 ])
                     , Html.div [] [ Html.text ("Score: " ++ String.fromInt (Set.size model.correctPairs)) ]
@@ -226,9 +232,10 @@ view model =
                     , Html.div [] [ Html.text ("Number of wins: " ++ String.fromInt model.numberOfWins) ]
                     , Html.div []
                         [ Html.button [ HE.onClick (Reset True), HA.class "reset-button" ] [ Html.text "Reset" ] ]
-                    , viewGameOverMessage model
-                    , Html.text (Debug.toString model.wrongPairs)
-                    , Html.text (Debug.toString model.chosenScale)
+                    , viewGameOverOrWinMessage model
+                    , Html.p [] [ Html.text ("numberIndex: " ++ Debug.toString model.numberIndex) ]
+                    , Html.p [] [ Html.text ("noteAndOriginalIndexTuplePrompted: " ++ Debug.toString model.noteAndOriginalIndexTuplePrompted) ]
+                    , Html.p [] [ Html.text ("correctPairs: " ++ Debug.toString model.correctPairs) ]
                     ]
 
             Nothing ->
@@ -236,20 +243,53 @@ view model =
         ]
 
 
-viewGameOverMessage : Model -> Html Msg
-viewGameOverMessage model =
-    Html.div
-        [ HA.class "game-over-message-container"
-        , if not model.gameOver then
-            HA.style "display" "none"
+viewNotePrompted : Model -> Html Msg
+viewNotePrompted model =
+    case model.noteAndOriginalIndexTuplePrompted of
+        Just ( _, note ) ->
+            Html.div []
+                [ Html.h1 []
+                    [ Html.text note
+                    ]
+                ]
 
-          else
-            HA.style "display" ""
-        ]
-        [ Html.p [] [ Html.text "Game over" ]
-        , Html.p []
-            [ Html.button [ HE.onClick GameOver, HA.class "try-again-button" ] [ Html.text "Try again" ] ]
-        ]
+        Nothing ->
+            Html.div [] [ Html.text "Please choose a key" ]
+
+
+viewGameOverOrWinMessage : Model -> Html Msg
+viewGameOverOrWinMessage model =
+    case model.result of
+        Just Win ->
+            Html.div
+                [ HA.class "game-over-message-container"
+                , if not model.gameOver then
+                    HA.style "display" "none"
+
+                  else
+                    HA.style "display" ""
+                ]
+                [ Html.p [] [ Html.text "You win!" ]
+                , Html.p []
+                    [ Html.button [ HE.onClick (Reset True), HA.class "try-again-button" ] [ Html.text "Play again" ] ]
+                ]
+
+        Just Lose ->
+            Html.div
+                [ HA.class "game-over-message-container"
+                , if not model.gameOver then
+                    HA.style "display" "none"
+
+                  else
+                    HA.style "display" ""
+                ]
+                [ Html.p [] [ Html.text "Game over" ]
+                , Html.p []
+                    [ Html.button [ HE.onClick (Reset False), HA.class "try-again-button" ] [ Html.text "Try again" ] ]
+                ]
+
+        Nothing ->
+            Html.div [] []
 
 
 viewKeys : TheoryApi.Key -> Html Msg
@@ -262,69 +302,16 @@ viewNumberButtons model number =
     Html.button
         [ HE.onClick (NumberClicked number)
         , HA.class "number-button"
-        , HA.disabled (model.isButtonDisabled || model.gameOver)
+        , HA.disabled model.gameOver
         ]
         [ Html.h1
             [ HA.classList
                 [ ( "correct-animation", isNumberCorrect model number )
-                , ( "wrong-" ++ String.fromInt model.numberOfWrongs, isNumberWrong model number ) -- Trying to get it to flash red when pressing the same wrong again
+                , ( "wrong", isNumberWrong model number ) -- Trying to get it to flash red when pressing the same wrong again
                 ]
             ]
             [ Html.text (String.fromInt (number + 1)) ]
         ]
-
-
-viewScaleButtons : Model -> ( Int, String ) -> Html Msg
-viewScaleButtons model ( originalIndex, note ) =
-    let
-        isActive =
-            model.noteIndex == originalIndex
-    in
-    Html.button
-        [ HE.onClick (NoteClicked originalIndex)
-        , HA.disabled model.gameOver
-        ]
-        [ Html.h1
-            [ HA.class "note-button"
-            , HA.classList
-                [ ( "correct-animation", isNoteCorrect model originalIndex )
-                , ( "game-button-active", isActive )
-                , ( "not-visible", isNoteVisible model note )
-                ]
-            ]
-            [ Html.text note
-            ]
-        ]
-
-
-isNoteVisible : Model -> String -> Bool
-isNoteVisible model note =
-    let
-        arrayOfNotesChosen =
-            case model.chosenScale of
-                Just chosenScale ->
-                    Array.fromList chosenScale.notes
-
-                Nothing ->
-                    Array.empty
-
-        notePrompted =
-            case Array.get model.exerciseStep arrayOfNotesChosen of
-                Just noteAndIndexTuple ->
-                    Tuple.second noteAndIndexTuple
-
-                Nothing ->
-                    "No note found at this index"
-
-        _ =
-            Debug.log "notePrompted" notePrompted
-    in
-    notePrompted /= note
-
-
-isNoteCorrect : Model -> Int -> Bool
-isNoteCorrect model noteIndex =
-    Set.member noteIndex (Set.map Tuple.first model.correctPairs)
 
 
 isNumberCorrect : Model -> Int -> Bool
@@ -334,9 +321,9 @@ isNumberCorrect model numberIndex =
 
 isNumberWrong : Model -> Int -> Bool
 isNumberWrong model number =
-    case model.wrongPairs of
-        Just wrongPairs ->
-            Tuple.second wrongPairs == number
+    case model.wrongPair of
+        Just wrongPair ->
+            Tuple.second wrongPair == number
 
         Nothing ->
             False
@@ -344,68 +331,98 @@ isNumberWrong model number =
 
 checkClickedValues : Model -> ( Model, Cmd Msg )
 checkClickedValues model =
-    if model.noteIndex == model.numberIndex then
-        let
-            newPair =
-                ( model.noteIndex, model.numberIndex )
+    case model.noteAndOriginalIndexTuplePrompted of
+        Just ( originalIndex, _ ) ->
+            if originalIndex == model.numberIndex then
+                -- if correct
+                let
+                    newPair =
+                        ( originalIndex, model.numberIndex )
 
-            newCorrectPairs =
-                Set.insert newPair model.correctPairs
+                    newCorrectPairs =
+                        Set.insert newPair model.correctPairs
 
-            newScore =
-                Set.size newCorrectPairs
+                    nextExerciseStep =
+                        model.exerciseStep + 1
 
-            newNumberOfWins =
-                model.numberOfWins + 1
+                    newScore =
+                        Set.size model.correctPairs
 
-            newExerciseStep =
-                model.exerciseStep + 1
+                    newNumberOfWins =
+                        model.numberOfWins + 1
 
-            newModel =
-                if newScore == 7 then
-                    ( { model | numberOfWins = newNumberOfWins, exerciseStep = 0 }
-                    , Cmd.batch
-                        [ saveWins newNumberOfWins
-                        , Task.perform (\_ -> Reset True) (Process.sleep 0)
-                        ]
-                    )
+                    maybeNextNote =
+                        model.chosenScale
+                            |> Maybe.map (\scale -> List.drop nextExerciseStep scale.notes)
+                            |> Maybe.andThen List.head
 
-                else
-                    ( { model
-                        | score = newScore
-                        , correctPairs = Set.insert newPair model.correctPairs
-                        , exerciseStep = newExerciseStep
-                      }
-                    , Cmd.none
-                    )
-        in
-        newModel
+                    newModelAndCmd =
+                        case maybeNextNote of
+                            Just nextNote ->
+                                ( { model
+                                    | score = newScore
+                                    , exerciseStep = nextExerciseStep
+                                    , correctPairs = newCorrectPairs
+                                    , noteAndOriginalIndexTuplePrompted = Just nextNote
+                                  }
+                                , Cmd.none
+                                )
 
-    else if model.wrongPairs == Nothing then
-        let
-            newWrongPair =
-                ( model.noteIndex, model.numberIndex )
+                            Nothing ->
+                                -- when all notes are paired correctly (User Win)
+                                ( { model
+                                    | numberOfWins = newNumberOfWins
+                                    , gameOver = True
+                                    , result = Just Win
+                                  }
+                                , Cmd.batch [ saveWins newNumberOfWins ]
+                                )
+                in
+                newModelAndCmd
 
-            newNumberOfWrongs =
-                model.numberOfWrongs + 1
+            else
+                -- if wrong
+                let
+                    newNumberOfWrongs =
+                        model.numberOfWrongs + 1
 
-            newModel =
-                if Tuple.second newWrongPair == 7 then
-                    model
+                    newWrongPair =
+                        ( originalIndex, model.numberIndex )
 
-                else
-                    { model
-                        | wrongPairs = Just newWrongPair
-                        , numberOfWrongs = newNumberOfWrongs
-                        , gameOver = newNumberOfWrongs == 100
-                    }
-        in
-        ( newModel, Cmd.none )
+                    newModelAndCmd =
+                        if newNumberOfWrongs == 3 then
+                            -- if lose
+                            ( { model | gameOver = True, result = Just Lose }, Cmd.none )
 
-    else
-        ( model, Cmd.none )
+                        else
+                            ( { model
+                                | numberOfWrongs = newNumberOfWrongs
+                                , wrongPair = Just newWrongPair
+                              }
+                            , Cmd.none
+                            )
+                in
+                newModelAndCmd
+
+        Nothing ->
+            ( model, Cmd.none )
 
 
-gameOver : Cmd Msg
-gameOver =
-    Task.perform (\_ -> Reset False) (Process.sleep 0)
+getOriginalIndexOfNotePrompted : Model -> Int
+getOriginalIndexOfNotePrompted model =
+    let
+        originalIndex =
+            case model.noteAndOriginalIndexTuplePrompted of
+                Just noteAndIndexTuple ->
+                    Tuple.first noteAndIndexTuple
+
+                Nothing ->
+                    7
+    in
+    originalIndex
+
+
+setUserWins : Cmd Msg
+setUserWins =
+    Task.perform (\_ -> Reset True) (Process.sleep 0)
+

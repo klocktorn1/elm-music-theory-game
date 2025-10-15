@@ -87,7 +87,7 @@ a {
   margin-bottom: 10px;
 }
 
-[class^="wrong"] {
+.wrong {
   animation: wrongAnimation 0.5s ease-out;
 }
 
