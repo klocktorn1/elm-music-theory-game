@@ -52,6 +52,8 @@ a {
   background-color: green !important;
 }
 
+
+
 .game-over-message-container {
   height: 25dvh;
   background-color: rgb(112, 112, 112);
@@ -98,6 +100,19 @@ a {
   }
 }
 
+.correct-animation {
+  animation: correctAnimation 0.5s ease-out;
+}
+
+@keyframes correctAnimation {
+  from {
+    background-color: green;
+  }
+  to {
+    background-color: inherit;
+  }
+}
+
 .key-buttons-container {
   border: 3px solid black;
   width: fit-content;
@@ -111,6 +126,10 @@ a {
 
 button {
   all: unset;
+}
+
+.not-visible {
+  display: none;
 }
 
 .note-buttons-container,

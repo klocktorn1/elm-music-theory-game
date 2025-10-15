@@ -11151,6 +11151,7 @@ var $author$project$Game$NoteExercise$init = function (flags) {
 			chosenScale: $elm$core$Maybe$Nothing,
 			correctPairs: $elm$core$Set$empty,
 			errorMessage: $elm$core$Maybe$Nothing,
+			exerciseStep: 0,
 			gameOver: false,
 			isButtonDisabled: true,
 			noteClicked: '',
@@ -11849,12 +11850,13 @@ var $author$project$Game$NoteExercise$checkClickedValues = function (model) {
 	if (_Utils_eq(model.noteIndex, model.numberIndex)) {
 		var newPair = _Utils_Tuple2(model.noteIndex, model.numberIndex);
 		var newNumberOfWins = model.numberOfWins + 1;
+		var newExerciseStep = model.exerciseStep + 1;
 		var newCorrectPairs = A2($elm$core$Set$insert, newPair, model.correctPairs);
 		var newScore = $elm$core$Set$size(newCorrectPairs);
 		var newModel = (newScore === 7) ? _Utils_Tuple2(
 			_Utils_update(
 				model,
-				{numberOfWins: newNumberOfWins}),
+				{exerciseStep: 0, numberOfWins: newNumberOfWins}),
 			$elm$core$Platform$Cmd$batch(
 				_List_fromArray(
 					[
@@ -11870,6 +11872,7 @@ var $author$project$Game$NoteExercise$checkClickedValues = function (model) {
 				model,
 				{
 					correctPairs: A2($elm$core$Set$insert, newPair, model.correctPairs),
+					exerciseStep: newExerciseStep,
 					score: newScore
 				}),
 			$elm$core$Platform$Cmd$none);
@@ -12747,7 +12750,7 @@ var $author$project$Game$NoteExercise$viewNumberButtons = F2(
 							_List_fromArray(
 								[
 									_Utils_Tuple2(
-									'correct',
+									'correct-animation',
 									A2($author$project$Game$NoteExercise$isNumberCorrect, model, number)),
 									_Utils_Tuple2(
 									'wrong-' + $elm$core$String$fromInt(model.numberOfWrongs),
@@ -12770,6 +12773,30 @@ var $author$project$Game$NoteExercise$isNoteCorrect = F2(
 			$elm$core$Set$member,
 			noteIndex,
 			A2($elm$core$Set$map, $elm$core$Tuple$first, model.correctPairs));
+	});
+var $elm$core$Debug$log = _Debug_log;
+var $author$project$Game$NoteExercise$isNoteVisible = F2(
+	function (model, note) {
+		var arrayOfNotesChosen = function () {
+			var _v2 = model.chosenScale;
+			if (_v2.$ === 'Just') {
+				var chosenScale = _v2.a;
+				return $elm$core$Array$fromList(chosenScale.notes);
+			} else {
+				return $elm$core$Array$empty;
+			}
+		}();
+		var notePrompted = function () {
+			var _v1 = A2($elm$core$Array$get, model.exerciseStep, arrayOfNotesChosen);
+			if (_v1.$ === 'Just') {
+				var noteAndIndexTuple = _v1.a;
+				return noteAndIndexTuple.b;
+			} else {
+				return 'No note found at this index';
+			}
+		}();
+		var _v0 = A2($elm$core$Debug$log, 'notePrompted', notePrompted);
+		return !_Utils_eq(notePrompted, note);
 	});
 var $author$project$Game$NoteExercise$viewScaleButtons = F2(
 	function (model, _v0) {
@@ -12795,9 +12822,12 @@ var $author$project$Game$NoteExercise$viewScaleButtons = F2(
 							_List_fromArray(
 								[
 									_Utils_Tuple2(
-									'correct',
+									'correct-animation',
 									A2($author$project$Game$NoteExercise$isNoteCorrect, model, originalIndex)),
-									_Utils_Tuple2('game-button-active', isActive)
+									_Utils_Tuple2('game-button-active', isActive),
+									_Utils_Tuple2(
+									'not-visible',
+									A2($author$project$Game$NoteExercise$isNoteVisible, model, note))
 								]))
 						]),
 					_List_fromArray(
@@ -12925,7 +12955,9 @@ var $author$project$Game$NoteExercise$view = function (model) {
 									])),
 								$author$project$Game$NoteExercise$viewGameOverMessage(model),
 								$elm$html$Html$text(
-								$elm$core$Debug$toString(model.wrongPairs))
+								$elm$core$Debug$toString(model.wrongPairs)),
+								$elm$html$Html$text(
+								$elm$core$Debug$toString(model.chosenScale))
 							]));
 				} else {
 					return A2($elm$html$Html$div, _List_Nil, _List_Nil);

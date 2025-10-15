@@ -14,15 +14,20 @@ import Set exposing (Set)
 import Task
 
 
+
 {-
    maybe change so that only one random note from the scale is shown instead
 
    example:
 
     User chooses key
-    -> Scale degrees (1-7) are rendered on screen
-    -> One note from that scale is shown with prompt: Which scale degree is "NOTE" in "KEY" major scale? 
+    -> Scale degrees (1-7) are rendered on screenma
+    -> One note from that scale is shown with prompt: Which scale degree is "NOTE" in "KEY" major scale?
     -> User presses the number they think is correct
+
+
+    isNoteVisible = False
+    ->
 
 
 -}
@@ -42,6 +47,7 @@ type alias Model =
     , isButtonDisabled : Bool
     , gameOver : Bool
     , errorMessage : Maybe String
+    , exerciseStep : Int
     }
 
 
@@ -98,6 +104,7 @@ init flags =
       , isButtonDisabled = True
       , gameOver = False
       , errorMessage = Nothing
+      , exerciseStep = 0
       }
     , Cmd.batch [ fetchScales ]
     )
@@ -221,6 +228,7 @@ view model =
                         [ Html.button [ HE.onClick (Reset True), HA.class "reset-button" ] [ Html.text "Reset" ] ]
                     , viewGameOverMessage model
                     , Html.text (Debug.toString model.wrongPairs)
+                    , Html.text (Debug.toString model.chosenScale)
                     ]
 
             Nothing ->
@@ -258,7 +266,7 @@ viewNumberButtons model number =
         ]
         [ Html.h1
             [ HA.classList
-                [ ( "correct", isNumberCorrect model number )
+                [ ( "correct-animation", isNumberCorrect model number )
                 , ( "wrong-" ++ String.fromInt model.numberOfWrongs, isNumberWrong model number ) -- Trying to get it to flash red when pressing the same wrong again
                 ]
             ]
@@ -279,13 +287,39 @@ viewScaleButtons model ( originalIndex, note ) =
         [ Html.h1
             [ HA.class "note-button"
             , HA.classList
-                [ ( "correct", isNoteCorrect model originalIndex )
+                [ ( "correct-animation", isNoteCorrect model originalIndex )
                 , ( "game-button-active", isActive )
+                , ( "not-visible", isNoteVisible model note )
                 ]
             ]
             [ Html.text note
             ]
         ]
+
+
+isNoteVisible : Model -> String -> Bool
+isNoteVisible model note =
+    let
+        arrayOfNotesChosen =
+            case model.chosenScale of
+                Just chosenScale ->
+                    Array.fromList chosenScale.notes
+
+                Nothing ->
+                    Array.empty
+
+        notePrompted =
+            case Array.get model.exerciseStep arrayOfNotesChosen of
+                Just noteAndIndexTuple ->
+                    Tuple.second noteAndIndexTuple
+
+                Nothing ->
+                    "No note found at this index"
+
+        _ =
+            Debug.log "notePrompted" notePrompted
+    in
+    notePrompted /= note
 
 
 isNoteCorrect : Model -> Int -> Bool
@@ -324,16 +358,23 @@ checkClickedValues model =
             newNumberOfWins =
                 model.numberOfWins + 1
 
+            newExerciseStep =
+                model.exerciseStep + 1
+
             newModel =
                 if newScore == 7 then
-                    ( { model | numberOfWins = newNumberOfWins }
-                    , Cmd.batch [ saveWins newNumberOfWins, Task.perform (\_ -> Reset True) (Process.sleep 0) ]
+                    ( { model | numberOfWins = newNumberOfWins, exerciseStep = 0 }
+                    , Cmd.batch
+                        [ saveWins newNumberOfWins
+                        , Task.perform (\_ -> Reset True) (Process.sleep 0)
+                        ]
                     )
 
                 else
                     ( { model
                         | score = newScore
                         , correctPairs = Set.insert newPair model.correctPairs
+                        , exerciseStep = newExerciseStep
                       }
                     , Cmd.none
                     )
