@@ -13,44 +13,6 @@ import Random
 import Task
 
 
-type alias Model =
-    { modes : Maybe TheoryApi.Modes
-    , chosenGameMode : Maybe GameMode
-    , keys : Maybe (List TheoryApi.Key)
-    , chosenKey : Maybe TheoryApi.Key
-    , randomizedMode : TheoryApi.Mode
-    , modesErrorMessage : Maybe String
-    , keysErrorMessage : Maybe String
-    , modeGuessed : Maybe String
-    , isCorrect : Bool
-    , isWrong : Bool
-    , score : Int
-    , resultMessage : String
-    , numberOfWrongs : Int
-    }
-
-
-type Msg
-    = ModesFetched (Result Http.Error TheoryApi.Modes)
-    | ChooseGame GameMode
-    | ScalesFetched (Result Http.Error (List TheoryApi.Key))
-    | ChooseKey TheoryApi.Key
-    | PickRandomMode Int
-    | ModeGuessed String
-    | RandomizeMode
-    | ResetWrong
-    | GoBack
-
-
-type alias Flags =
-    String
-
-
-type GameMode
-    = ModeGuesserGame
-    | ModeBuilderGame
-
-
 
 {-
 
@@ -76,33 +38,71 @@ type GameMode
 -}
 
 
-fetchScales : Cmd Msg
-fetchScales =
-    TheoryApi.fetchScales ScalesFetched
+type alias Model =
+    { modes : Maybe TheoryApi.Modes
+    , chosenGameMode : Maybe GameMode
+    , majorScales : Maybe (List TheoryApi.MajorScale)
+    , chosenKey : Maybe TheoryApi.MajorScale
+    , randomizedMode : TheoryApi.Mode
+    , modesErrorMessage : Maybe String
+    , errorMessage : Maybe String
+    , modeGuessed : Maybe String
+    , isCorrect : Bool
+    , isWrong : Bool
+    , score : Int
+    , resultMessage : String
+    , numberOfWrongs : Int
+    , allNotes : Maybe (List String)
+    , userBuiltMode : List String
+    }
 
 
-fetchModes : Cmd Msg
-fetchModes =
-    TheoryApi.fetchModes ModesFetched
+type Msg
+    = TheoryDbFetched (Result Http.Error TheoryApi.TheoryDb)
+    | ChooseGame GameMode
+    | ChooseKey TheoryApi.MajorScale
+    | PickRandomMode Int
+    | ModeGuessed String
+    | RandomizeMode
+    | ResetWrong
+    | GoBack
+    | AddToModeBuilderList String
+    | SubmitBuiltMode
+
+
+type alias Flags =
+    String
+
+
+type GameMode
+    = ModeGuesserGame
+    | ModeBuilderGame
+
+
+fetchTheoryDb : Cmd Msg
+fetchTheoryDb =
+    TheoryApi.fetchTheoryDb TheoryDbFetched
 
 
 init : Flags -> ( Model, Cmd Msg )
 init _ =
     ( { modes = Nothing
       , chosenGameMode = Nothing
-      , keys = Nothing
+      , majorScales = Nothing
       , chosenKey = Nothing
       , randomizedMode = { mode = "No mode randomized yet", formula = [] }
       , modesErrorMessage = Nothing
-      , keysErrorMessage = Nothing
+      , errorMessage = Nothing
       , modeGuessed = Nothing
       , isCorrect = False
       , isWrong = False
       , score = 0
       , resultMessage = ""
       , numberOfWrongs = 0
+      , allNotes = Nothing
+      , userBuiltMode = []
       }
-    , Cmd.batch [ fetchScales, fetchModes ]
+    , Cmd.batch [ fetchTheoryDb ]
     )
 
 
@@ -115,17 +115,17 @@ update msg model =
         GoBack ->
             ( { model | chosenGameMode = Nothing }, Cmd.none )
 
-        ModesFetched (Ok modes) ->
-            ( { model | modes = Just modes }, Cmd.none )
+        TheoryDbFetched (Ok theoryDb) ->
+            ( { model
+                | modes = Just theoryDb.modes
+                , majorScales = Just theoryDb.majorScales
+                , allNotes = Just theoryDb.allNotes
+              }
+            , Cmd.none
+            )
 
-        ModesFetched (Err httpError) ->
-            ( { model | modesErrorMessage = Just (buildErrorMessage httpError) }, Cmd.none )
-
-        ScalesFetched (Ok keys) ->
-            ( { model | keys = Just keys }, Cmd.none )
-
-        ScalesFetched (Err httpError) ->
-            ( { model | keysErrorMessage = Just (buildErrorMessage httpError) }, Cmd.none )
+        TheoryDbFetched (Err httpError) ->
+            ( { model | errorMessage = Just (TheoryApi.buildErrorMessage httpError) }, Cmd.none )
 
         ChooseKey key ->
             let
@@ -146,7 +146,7 @@ update msg model =
                     { model | modeGuessed = Just mode }
 
                 modelWithResult =
-                    checkIfCorrect modelWithModeGuessed
+                    checkIfModeGuessCorrect modelWithModeGuessed
             in
             modelWithResult
 
@@ -156,43 +156,11 @@ update msg model =
         ResetWrong ->
             ( { model | isWrong = False }, Cmd.none )
 
+        AddToModeBuilderList note ->
+            ( { model | userBuiltMode = note :: model.userBuiltMode }, Cmd.none )
 
-buildErrorMessage : Http.Error -> String
-buildErrorMessage httpError =
-    case httpError of
-        Http.BadUrl message ->
-            message
-
-        Http.Timeout ->
-            "Server is taking too long to respond. Please try again later"
-
-        Http.NetworkError ->
-            "Unable to reach server"
-
-        Http.BadStatus statusCode ->
-            "Request failed with status code: " ++ (statusCode |> String.fromInt)
-
-        Http.BadBody message ->
-            message
-
-
-pickRandomMode : Maybe TheoryApi.Modes -> Int -> TheoryApi.Mode
-pickRandomMode maybeModes randomIndex =
-    case maybeModes of
-        Just modes ->
-            let
-                maybeRandomModeObject =
-                    case Array.get randomIndex (Array.fromList modes) of
-                        Just randomModeObject ->
-                            randomModeObject
-
-                        Nothing ->
-                            { mode = "No mode found at given index", formula = [] }
-            in
-            maybeRandomModeObject
-
-        Nothing ->
-            { mode = "No mode found", formula = [] }
+        SubmitBuiltMode ->
+            checkIfModeBuiltCorrect model
 
 
 view : Model -> Html Msg
@@ -211,8 +179,12 @@ view model =
 
             Just ModeBuilderGame ->
                 Html.div []
-                    [ Html.button [ HA.class "key-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
+                    [ Html.text """Choose a key below. A randomized mode 
+                            (ionian, dorian, phrygian, lydian, mixolydian, aeolian or locrian) 
+                            will be given. Your goal is to build this mode in the chosen key"""
+                    , viewKeysOrError model
                     , viewModeBuilderGame model
+                    , Html.button [ HA.class "key-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
                     ]
 
             Nothing ->
@@ -229,7 +201,42 @@ view model =
 
 viewModeBuilderGame : Model -> Html Msg
 viewModeBuilderGame model =
-    Html.div [] []
+    case model.chosenKey of
+        Just chosenKey ->
+            Html.div []
+                [ Html.p [] [ Html.text ("Please build the " ++ chosenKey.key ++ " " ++ model.randomizedMode.mode ++ " mode") ]
+                , Html.p []
+                    ([]
+                        ++ List.reverse (List.map viewUserBuiltMode model.userBuiltMode)
+                    )
+                , viewAllNotes model
+                , Html.button [ HA.class "key-button", HE.onClick SubmitBuiltMode ] [ Html.text "Submit" ]
+                ]
+
+        Nothing ->
+            Html.div [] [ Html.text "Please choose a key" ]
+
+
+viewUserBuiltMode : String -> Html Msg
+viewUserBuiltMode note =
+    Html.text (note ++ " ")
+
+
+viewAllNotes : Model -> Html Msg
+viewAllNotes model =
+    case model.allNotes of
+        Just allNotes ->
+            Html.div []
+                (List.map
+                    (\note ->
+                        Html.button [ HA.class "key-button", HE.onClick (AddToModeBuilderList note) ]
+                            [ Html.text (note ++ ",") ]
+                    )
+                    allNotes
+                )
+
+        Nothing ->
+            Html.div [] [ Html.text "No notes" ]
 
 
 viewModeGuesserGame : Model -> Html Msg
@@ -290,35 +297,35 @@ isModeWrong model modeName =
     model.isWrong && (model.modeGuessed == Just modeName)
 
 
-viewConstructedMode : TheoryApi.Key -> List String -> Html Msg
+viewConstructedMode : TheoryApi.MajorScale -> List String -> Html Msg
 viewConstructedMode chosenKey mode =
     Html.div [ HA.class "mode-container" ]
         (List.append [ Html.text "Mode: " ]
             (chosenKey
                 |> notesToListString
-                |> constructScale mode
-                |> List.map viewConstructedScale
+                |> constructMode mode
+                |> List.map viewConstructMode
             )
         )
 
 
 viewKeysOrError : Model -> Html Msg
 viewKeysOrError model =
-    case model.keysErrorMessage of
+    case model.errorMessage of
         Just error ->
             Html.div []
                 [ Html.text error ]
 
         Nothing ->
-            case model.keys of
-                Just keys ->
-                    Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons keys)
+            case model.majorScales of
+                Just majorScales ->
+                    Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons majorScales)
 
                 Nothing ->
                     Html.div [] [ Html.text "something else" ]
 
 
-viewKeyButtons : TheoryApi.Key -> Html Msg
+viewKeyButtons : TheoryApi.MajorScale -> Html Msg
 viewKeyButtons key =
     Html.div []
         [ Html.div [ HA.class "key-button", HE.onClick (ChooseKey key) ]
@@ -327,8 +334,8 @@ viewKeyButtons key =
         ]
 
 
-viewConstructedScale : String -> Html Msg
-viewConstructedScale constructedNote =
+viewConstructMode : String -> Html Msg
+viewConstructMode constructedNote =
     Html.div []
         [ Html.text constructedNote
         , Html.div [] []
@@ -340,20 +347,20 @@ viewModeButtons mode =
     Html.div [ HA.class "key-button" ] [ Html.text mode.mode ]
 
 
-notesToListString : TheoryApi.Key -> List String
+notesToListString : TheoryApi.MajorScale -> List String
 notesToListString key =
     List.map Tuple.second key.notes
 
 
-constructScale : List String -> List String -> List String
-constructScale mode key =
+constructMode : List String -> List String -> List String
+constructMode mode key =
     List.map2 (++) key mode
         |> List.map (String.replace "#b" "")
         |> List.map (String.replace "b#" "")
 
 
-checkIfCorrect : Model -> ( Model, Cmd Msg )
-checkIfCorrect model =
+checkIfModeGuessCorrect : Model -> ( Model, Cmd Msg )
+checkIfModeGuessCorrect model =
     if model.modeGuessed == Just model.randomizedMode.mode then
         ( { model
             | score = model.score + 1
@@ -379,6 +386,43 @@ checkIfCorrect model =
           }
         , resetCmd
         )
+
+
+checkIfModeBuiltCorrect : Model -> ( Model, Cmd Msg )
+checkIfModeBuiltCorrect model =
+    case model.chosenKey of
+        Just chosenKey ->
+            if List.reverse model.userBuiltMode == constructMode model.randomizedMode.formula (notesToListString chosenKey) then
+                let
+                    _ =
+                        Debug.log "You win!" ""
+                in
+                ( model, Cmd.none )
+
+            else
+                ( model, Cmd.none )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+pickRandomMode : Maybe TheoryApi.Modes -> Int -> TheoryApi.Mode
+pickRandomMode maybeModes randomIndex =
+    case maybeModes of
+        Just modes ->
+            let
+                maybeRandomModeObject =
+                    case Array.get randomIndex (Array.fromList modes) of
+                        Just randomModeObject ->
+                            randomModeObject
+
+                        Nothing ->
+                            { mode = "No mode found at given index", formula = [] }
+            in
+            maybeRandomModeObject
+
+        Nothing ->
+            { mode = "No mode found", formula = [] }
 
 
 randomizeMode : Cmd Msg

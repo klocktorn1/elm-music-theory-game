@@ -1,6 +1,5 @@
 port module Game.NoteExercise exposing (..)
 
-import Array exposing (Array)
 import Game.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
@@ -17,16 +16,16 @@ import Task
 
 {-
 
-    when clicking the same wron two times in a row it doesnt go red.
-    when clicking the third mistake and game ends button doesnt go red
+   when clicking the same wron two times in a row it doesnt go red.
+   when clicking the third mistake and game ends button doesnt go red
 
 
 -}
 
 
 type alias Model =
-    { chosenScale : Maybe TheoryApi.Key
-    , scales : List TheoryApi.Key
+    { chosenScale : Maybe TheoryApi.MajorScale
+    , majorScales : Maybe (List TheoryApi.MajorScale)
     , score : Int
     , correctPairs : Set CorrectPair
     , wrongPair : Maybe ( Int, Int )
@@ -59,8 +58,8 @@ type Msg
     = NumberClicked Int
     | Shuffle
     | Shuffled (List ( Int, TheoryApi.Note ))
-    | ScalesFetched (Result Http.Error (List TheoryApi.Key))
-    | ChooseKey TheoryApi.Key
+    | TheoryDbFetched (Result Http.Error TheoryApi.TheoryDb)
+    | ChooseKey TheoryApi.MajorScale
     | Reset Bool
 
 
@@ -79,15 +78,15 @@ saveWins numberOfWins =
         |> sendToLocalStorage
 
 
-fetchScales : Cmd Msg
-fetchScales =
-    TheoryApi.fetchScales ScalesFetched
+fetchTheoryDb : Cmd Msg
+fetchTheoryDb =
+    TheoryApi.fetchTheoryDb TheoryDbFetched
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { chosenScale = Nothing
-      , scales = []
+      , majorScales = Nothing
       , score = 0
       , correctPairs = Set.empty
       , wrongPair = Nothing
@@ -102,7 +101,7 @@ init flags =
       , noteAndOriginalIndexTuplePrompted = Nothing
       , result = Nothing
       }
-    , Cmd.batch [ fetchScales ]
+    , Cmd.batch [ fetchTheoryDb ]
     )
 
 
@@ -156,11 +155,11 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        ScalesFetched (Ok scales) ->
-            ( { model | scales = scales }, Cmd.none )
+        TheoryDbFetched (Ok theoryDb) ->
+            ( { model | majorScales = Just theoryDb.majorScales }, Cmd.none )
 
-        ScalesFetched (Err error) ->
-            ( model, Cmd.none )
+        TheoryDbFetched (Err httpError) ->
+            ( { model | errorMessage = Just (TheoryApi.buildErrorMessage httpError) }, Cmd.none )
 
         ChooseKey scale ->
             let
@@ -214,7 +213,7 @@ view model =
         [ Html.div [ HA.classList [ ( "game-over-disabled", model.gameOver ) ] ] []
         , Html.div [] [ Html.text "Pick a major scale:" ]
         , Html.text "Pick a key. Match the note with the corresponding number in that scale (C1 D2 E3 F4 G5 A6 B7 in C for example)"
-        , Html.div [ HA.class "key-buttons-container" ] (List.map (\key -> viewKeys key) model.scales)
+        , viewKeysOrError model
         , case model.chosenScale of
             Just scale ->
                 Html.div []
@@ -292,9 +291,28 @@ viewGameOverOrWinMessage model =
             Html.div [] []
 
 
-viewKeys : TheoryApi.Key -> Html Msg
-viewKeys scale =
-    Html.div [ HA.class "key-button", HE.onClick (ChooseKey scale) ] [ Html.text scale.key ]
+viewKeysOrError : Model -> Html Msg
+viewKeysOrError model =
+    case model.errorMessage of
+        Just errorMessage ->
+            Html.div [] [ Html.text errorMessage ]
+
+        Nothing ->
+            case model.majorScales of
+                Just majorScales ->
+                    Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons majorScales)
+
+                Nothing ->
+                    Html.div [] [ Html.text "something else" ]
+
+
+viewKeyButtons : TheoryApi.MajorScale -> Html Msg
+viewKeyButtons key =
+    Html.div []
+        [ Html.div [ HA.class "key-button", HE.onClick (ChooseKey key) ]
+            [ Html.text key.key
+            ]
+        ]
 
 
 viewNumberButtons : Model -> Int -> Html Msg
@@ -425,4 +443,3 @@ getOriginalIndexOfNotePrompted model =
 setUserWins : Cmd Msg
 setUserWins =
     Task.perform (\_ -> Reset True) (Process.sleep 0)
-
