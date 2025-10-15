@@ -11151,19 +11151,21 @@ var $author$project$Game$NoteExercise$init = function (flags) {
 			chosenScale: $elm$core$Maybe$Nothing,
 			correctPairs: $elm$core$Set$empty,
 			errorMessage: $elm$core$Maybe$Nothing,
+			exerciseStep: 0,
 			gameOver: false,
 			isButtonDisabled: true,
-			noteClicked: '',
-			noteIndex: 7,
+			noteAndOriginalIndexTuplePrompted: $elm$core$Maybe$Nothing,
 			numberIndex: 7,
 			numberOfWins: A2(
 				$elm$core$Maybe$withDefault,
 				0,
 				$elm$core$String$toInt(flags)),
 			numberOfWrongs: 0,
+			result: $elm$core$Maybe$Nothing,
 			scales: _List_Nil,
 			score: 0,
-			wrongPairs: $elm$core$Maybe$Nothing
+			userWins: false,
+			wrongPair: $elm$core$Maybe$Nothing
 		},
 		$elm$core$Platform$Cmd$batch(
 			_List_fromArray(
@@ -11823,14 +11825,41 @@ var $author$project$Game$ModeExercise$update = F2(
 var $author$project$Game$NoteExercise$Shuffled = function (a) {
 	return {$: 'Shuffled', a: a};
 };
-var $author$project$Game$NoteExercise$Reset = function (a) {
-	return {$: 'Reset', a: a};
+var $author$project$Game$NoteExercise$Lose = {$: 'Lose'};
+var $author$project$Game$NoteExercise$Win = {$: 'Win'};
+var $elm$core$Maybe$andThen = F2(
+	function (callback, maybeValue) {
+		if (maybeValue.$ === 'Just') {
+			var value = maybeValue.a;
+			return callback(value);
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
 };
 var $elm$core$Set$insert = F2(
 	function (key, _v0) {
 		var dict = _v0.a;
 		return $elm$core$Set$Set_elm_builtin(
 			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
 	});
 var $elm$json$Json$Encode$int = _Json_wrap;
 var $author$project$Game$NoteExercise$sendToLocalStorage = _Platform_outgoingPort('sendToLocalStorage', $elm$json$Json$Encode$string);
@@ -11846,57 +11875,79 @@ var $elm$core$Set$size = function (_v0) {
 	return $elm$core$Dict$size(dict);
 };
 var $author$project$Game$NoteExercise$checkClickedValues = function (model) {
-	if (_Utils_eq(model.noteIndex, model.numberIndex)) {
-		var newPair = _Utils_Tuple2(model.noteIndex, model.numberIndex);
-		var newNumberOfWins = model.numberOfWins + 1;
-		var newCorrectPairs = A2($elm$core$Set$insert, newPair, model.correctPairs);
-		var newScore = $elm$core$Set$size(newCorrectPairs);
-		var newModel = (newScore === 7) ? _Utils_Tuple2(
-			_Utils_update(
-				model,
-				{numberOfWins: newNumberOfWins}),
-			$elm$core$Platform$Cmd$batch(
-				_List_fromArray(
-					[
-						$author$project$Game$NoteExercise$saveWins(newNumberOfWins),
-						A2(
-						$elm$core$Task$perform,
-						function (_v0) {
-							return $author$project$Game$NoteExercise$Reset(true);
-						},
-						$elm$core$Process$sleep(0))
-					]))) : _Utils_Tuple2(
-			_Utils_update(
-				model,
-				{
-					correctPairs: A2($elm$core$Set$insert, newPair, model.correctPairs),
-					score: newScore
-				}),
-			$elm$core$Platform$Cmd$none);
-		return newModel;
-	} else {
-		if (_Utils_eq(model.wrongPairs, $elm$core$Maybe$Nothing)) {
-			var newWrongPair = _Utils_Tuple2(model.noteIndex, model.numberIndex);
-			var newNumberOfWrongs = model.numberOfWrongs + 1;
-			var newModel = (newWrongPair.b === 7) ? model : _Utils_update(
-				model,
-				{
-					gameOver: newNumberOfWrongs === 100,
-					numberOfWrongs: newNumberOfWrongs,
-					wrongPairs: $elm$core$Maybe$Just(newWrongPair)
-				});
-			return _Utils_Tuple2(newModel, $elm$core$Platform$Cmd$none);
+	var _v0 = model.noteAndOriginalIndexTuplePrompted;
+	if (_v0.$ === 'Just') {
+		var _v1 = _v0.a;
+		var originalIndex = _v1.a;
+		if (_Utils_eq(originalIndex, model.numberIndex)) {
+			var nextExerciseStep = model.exerciseStep + 1;
+			var newScore = $elm$core$Set$size(model.correctPairs);
+			var newPair = _Utils_Tuple2(originalIndex, model.numberIndex);
+			var newNumberOfWins = model.numberOfWins + 1;
+			var newCorrectPairs = A2($elm$core$Set$insert, newPair, model.correctPairs);
+			var maybeNextNote = A2(
+				$elm$core$Maybe$andThen,
+				$elm$core$List$head,
+				A2(
+					$elm$core$Maybe$map,
+					function (scale) {
+						return A2($elm$core$List$drop, nextExerciseStep, scale.notes);
+					},
+					model.chosenScale));
+			var newModelAndCmd = function () {
+				if (maybeNextNote.$ === 'Just') {
+					var nextNote = maybeNextNote.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								correctPairs: newCorrectPairs,
+								exerciseStep: nextExerciseStep,
+								noteAndOriginalIndexTuplePrompted: $elm$core$Maybe$Just(nextNote),
+								score: newScore
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								gameOver: true,
+								numberOfWins: newNumberOfWins,
+								result: $elm$core$Maybe$Just($author$project$Game$NoteExercise$Win)
+							}),
+						$elm$core$Platform$Cmd$batch(
+							_List_fromArray(
+								[
+									$author$project$Game$NoteExercise$saveWins(newNumberOfWins)
+								])));
+				}
+			}();
+			return newModelAndCmd;
 		} else {
-			return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			var newWrongPair = _Utils_Tuple2(originalIndex, model.numberIndex);
+			var newNumberOfWrongs = model.numberOfWrongs + 1;
+			var newModelAndCmd = (newNumberOfWrongs === 3) ? _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{
+						gameOver: true,
+						result: $elm$core$Maybe$Just($author$project$Game$NoteExercise$Lose)
+					}),
+				$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{
+						numberOfWrongs: newNumberOfWrongs,
+						wrongPair: $elm$core$Maybe$Just(newWrongPair)
+					}),
+				$elm$core$Platform$Cmd$none);
+			return newModelAndCmd;
 		}
+	} else {
+		return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 	}
 };
-var $author$project$Game$NoteExercise$gameOver = A2(
-	$elm$core$Task$perform,
-	function (_v0) {
-		return $author$project$Game$NoteExercise$Reset(false);
-	},
-	$elm$core$Process$sleep(0));
 var $elm$random$Random$maxInt = 2147483647;
 var $elm$random$Random$minInt = -2147483648;
 var $elm_community$random_extra$Random$List$anyInt = A2($elm$random$Random$int, $elm$random$Random$minInt, $elm$random$Random$maxInt);
@@ -11970,24 +12021,11 @@ var $elm_community$random_extra$Random$List$shuffle = function (list) {
 var $author$project$Game$NoteExercise$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
-			case 'NoteClicked':
-				var index = msg.a;
-				var modelWithWrongPairsSetEmpty = _Utils_update(
-					model,
-					{wrongPairs: $elm$core$Maybe$Nothing});
-				var modelWithNote = _Utils_update(
-					modelWithWrongPairsSetEmpty,
-					{noteIndex: index});
-				return _Utils_Tuple2(
-					_Utils_update(
-						modelWithNote,
-						{isButtonDisabled: false}),
-					$elm$core$Platform$Cmd$none);
 			case 'NumberClicked':
 				var number = msg.a;
 				var modelWithNumber = _Utils_update(
 					model,
-					{numberIndex: number, wrongPairs: $elm$core$Maybe$Nothing});
+					{numberIndex: number, wrongPair: $elm$core$Maybe$Nothing});
 				var newModel = $author$project$Game$NoteExercise$checkClickedValues(modelWithNumber);
 				return newModel;
 			case 'Shuffle':
@@ -12011,13 +12049,24 @@ var $author$project$Game$NoteExercise$update = F2(
 					var newScale = _Utils_update(
 						scale,
 						{notes: newNotes});
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{
-								chosenScale: $elm$core$Maybe$Just(newScale)
-							}),
-						$elm$core$Platform$Cmd$none);
+					var maybeFirstNote = $elm$core$List$head(newNotes);
+					if (maybeFirstNote.$ === 'Just') {
+						var firstNote = maybeFirstNote.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{
+									chosenScale: $elm$core$Maybe$Just(newScale),
+									correctPairs: $elm$core$Set$empty,
+									exerciseStep: 0,
+									noteAndOriginalIndexTuplePrompted: $elm$core$Maybe$Just(firstNote),
+									numberIndex: 7,
+									wrongPair: $elm$core$Maybe$Nothing
+								}),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
@@ -12041,32 +12090,36 @@ var $author$project$Game$NoteExercise$update = F2(
 						{
 							chosenScale: $elm$core$Maybe$Just(scale),
 							correctPairs: $elm$core$Set$empty,
-							noteClicked: '',
-							noteIndex: 7,
-							numberIndex: 7
+							gameOver: false,
+							noteAndOriginalIndexTuplePrompted: $elm$core$Maybe$Nothing,
+							numberIndex: 7,
+							numberOfWrongs: 0,
+							score: 0,
+							wrongPair: $elm$core$Maybe$Nothing
 						}),
 					A2(
 						$elm$random$Random$generate,
 						$author$project$Game$NoteExercise$Shuffled,
 						$elm_community$random_extra$Random$List$shuffle(scale.notes)));
 				return newModel;
-			case 'Reset':
+			default:
 				var shuffle = msg.a;
-				var _v3 = model.chosenScale;
-				if (_v3.$ === 'Just') {
-					var scale = _v3.a;
+				var _v4 = model.chosenScale;
+				if (_v4.$ === 'Just') {
+					var scale = _v4.a;
+					var firstNote = $elm$core$List$head(scale.notes);
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
 							{
 								chosenScale: $elm$core$Maybe$Just(scale),
 								correctPairs: $elm$core$Set$empty,
+								exerciseStep: 0,
 								gameOver: false,
-								noteClicked: '',
-								noteIndex: 7,
+								noteAndOriginalIndexTuplePrompted: firstNote,
 								numberIndex: 7,
 								numberOfWrongs: 0,
-								wrongPairs: $elm$core$Maybe$Nothing
+								wrongPair: $elm$core$Maybe$Nothing
 							}),
 						shuffle ? A2(
 							$elm$random$Random$generate,
@@ -12075,8 +12128,6 @@ var $author$project$Game$NoteExercise$update = F2(
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
-			default:
-				return _Utils_Tuple2(model, $author$project$Game$NoteExercise$gameOver);
 		}
 	});
 var $author$project$Main$update = F2(
@@ -12598,42 +12649,90 @@ var $author$project$Game$ModeExercise$view = function (model) {
 			}()
 			]));
 };
-var $author$project$Game$NoteExercise$GameOver = {$: 'GameOver'};
-var $author$project$Game$NoteExercise$viewGameOverMessage = function (model) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				$elm$html$Html$Attributes$class('game-over-message-container'),
-				(!model.gameOver) ? A2($elm$html$Html$Attributes$style, 'display', 'none') : A2($elm$html$Html$Attributes$style, 'display', '')
-			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$p,
-				_List_Nil,
+var $author$project$Game$NoteExercise$Reset = function (a) {
+	return {$: 'Reset', a: a};
+};
+var $author$project$Game$NoteExercise$viewGameOverOrWinMessage = function (model) {
+	var _v0 = model.result;
+	if (_v0.$ === 'Just') {
+		if (_v0.a.$ === 'Win') {
+			var _v1 = _v0.a;
+			return A2(
+				$elm$html$Html$div,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('Game over')
-					])),
-				A2(
-				$elm$html$Html$p,
-				_List_Nil,
+						$elm$html$Html$Attributes$class('game-over-message-container'),
+						(!model.gameOver) ? A2($elm$html$Html$Attributes$style, 'display', 'none') : A2($elm$html$Html$Attributes$style, 'display', '')
+					]),
 				_List_fromArray(
 					[
 						A2(
-						$elm$html$Html$button,
+						$elm$html$Html$p,
+						_List_Nil,
 						_List_fromArray(
 							[
-								$elm$html$Html$Events$onClick($author$project$Game$NoteExercise$GameOver),
-								$elm$html$Html$Attributes$class('try-again-button')
-							]),
+								$elm$html$Html$text('You win!')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
 						_List_fromArray(
 							[
-								$elm$html$Html$text('Try again')
+								A2(
+								$elm$html$Html$button,
+								_List_fromArray(
+									[
+										$elm$html$Html$Events$onClick(
+										$author$project$Game$NoteExercise$Reset(true)),
+										$elm$html$Html$Attributes$class('try-again-button')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Play again')
+									]))
 							]))
-					]))
-			]));
+					]));
+		} else {
+			var _v2 = _v0.a;
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('game-over-message-container'),
+						(!model.gameOver) ? A2($elm$html$Html$Attributes$style, 'display', 'none') : A2($elm$html$Html$Attributes$style, 'display', '')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Game over')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$button,
+								_List_fromArray(
+									[
+										$elm$html$Html$Events$onClick(
+										$author$project$Game$NoteExercise$Reset(false)),
+										$elm$html$Html$Attributes$class('try-again-button')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Try again')
+									]))
+							]))
+					]));
+		}
+	} else {
+		return A2($elm$html$Html$div, _List_Nil, _List_Nil);
+	}
 };
 var $author$project$Game$NoteExercise$ChooseKey = function (a) {
 	return {$: 'ChooseKey', a: a};
@@ -12652,6 +12751,35 @@ var $author$project$Game$NoteExercise$viewKeys = function (scale) {
 				$elm$html$Html$text(scale.key)
 			]));
 };
+var $elm$html$Html$h1 = _VirtualDom_node('h1');
+var $author$project$Game$NoteExercise$viewNotePrompted = function (model) {
+	var _v0 = model.noteAndOriginalIndexTuplePrompted;
+	if (_v0.$ === 'Just') {
+		var _v1 = _v0.a;
+		var note = _v1.b;
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$h1,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text(note)
+						]))
+				]));
+	} else {
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					$elm$html$Html$text('Please choose a key')
+				]));
+	}
+};
 var $author$project$Game$NoteExercise$NumberClicked = function (a) {
 	return {$: 'NumberClicked', a: a};
 };
@@ -12664,7 +12792,6 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 			$elm$json$Json$Encode$bool(bool));
 	});
 var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
-var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$core$Set$foldl = F3(
 	function (func, initialState, _v0) {
 		var dict = _v0.a;
@@ -12718,10 +12845,10 @@ var $author$project$Game$NoteExercise$isNumberCorrect = F2(
 	});
 var $author$project$Game$NoteExercise$isNumberWrong = F2(
 	function (model, number) {
-		var _v0 = model.wrongPairs;
+		var _v0 = model.wrongPair;
 		if (_v0.$ === 'Just') {
-			var wrongPairs = _v0.a;
-			return _Utils_eq(wrongPairs.b, number);
+			var wrongPair = _v0.a;
+			return _Utils_eq(wrongPair.b, number);
 		} else {
 			return false;
 		}
@@ -12735,53 +12862,6 @@ var $author$project$Game$NoteExercise$viewNumberButtons = F2(
 					$elm$html$Html$Events$onClick(
 					$author$project$Game$NoteExercise$NumberClicked(number)),
 					$elm$html$Html$Attributes$class('number-button'),
-					$elm$html$Html$Attributes$disabled(model.isButtonDisabled || model.gameOver)
-				]),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$h1,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$classList(
-							_List_fromArray(
-								[
-									_Utils_Tuple2(
-									'correct',
-									A2($author$project$Game$NoteExercise$isNumberCorrect, model, number)),
-									_Utils_Tuple2(
-									'wrong-' + $elm$core$String$fromInt(model.numberOfWrongs),
-									A2($author$project$Game$NoteExercise$isNumberWrong, model, number))
-								]))
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(
-							$elm$core$String$fromInt(number + 1))
-						]))
-				]));
-	});
-var $author$project$Game$NoteExercise$NoteClicked = function (a) {
-	return {$: 'NoteClicked', a: a};
-};
-var $author$project$Game$NoteExercise$isNoteCorrect = F2(
-	function (model, noteIndex) {
-		return A2(
-			$elm$core$Set$member,
-			noteIndex,
-			A2($elm$core$Set$map, $elm$core$Tuple$first, model.correctPairs));
-	});
-var $author$project$Game$NoteExercise$viewScaleButtons = F2(
-	function (model, _v0) {
-		var originalIndex = _v0.a;
-		var note = _v0.b;
-		var isActive = _Utils_eq(model.noteIndex, originalIndex);
-		return A2(
-			$elm$html$Html$button,
-			_List_fromArray(
-				[
-					$elm$html$Html$Events$onClick(
-					$author$project$Game$NoteExercise$NoteClicked(originalIndex)),
 					$elm$html$Html$Attributes$disabled(model.gameOver)
 				]),
 			_List_fromArray(
@@ -12790,19 +12870,21 @@ var $author$project$Game$NoteExercise$viewScaleButtons = F2(
 					$elm$html$Html$h1,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$class('note-button'),
 							$elm$html$Html$Attributes$classList(
 							_List_fromArray(
 								[
 									_Utils_Tuple2(
-									'correct',
-									A2($author$project$Game$NoteExercise$isNoteCorrect, model, originalIndex)),
-									_Utils_Tuple2('game-button-active', isActive)
+									'correct-animation',
+									A2($author$project$Game$NoteExercise$isNumberCorrect, model, number)),
+									_Utils_Tuple2(
+									'wrong',
+									A2($author$project$Game$NoteExercise$isNumberWrong, model, number))
 								]))
 						]),
 					_List_fromArray(
 						[
-							$elm$html$Html$text(note)
+							$elm$html$Html$text(
+							$elm$core$String$fromInt(number + 1))
 						]))
 				]));
 	});
@@ -12859,12 +12941,10 @@ var $author$project$Game$NoteExercise$view = function (model) {
 									[
 										$elm$html$Html$Attributes$class('note-buttons-container')
 									]),
-								A2(
-									$elm$core$List$map,
-									function (note) {
-										return A2($author$project$Game$NoteExercise$viewScaleButtons, model, note);
-									},
-									scale.notes)),
+								_List_fromArray(
+									[
+										$author$project$Game$NoteExercise$viewNotePrompted(model)
+									])),
 								A2(
 								$elm$html$Html$div,
 								_List_fromArray(
@@ -12923,9 +13003,31 @@ var $author$project$Game$NoteExercise$view = function (model) {
 												$elm$html$Html$text('Reset')
 											]))
 									])),
-								$author$project$Game$NoteExercise$viewGameOverMessage(model),
-								$elm$html$Html$text(
-								$elm$core$Debug$toString(model.wrongPairs))
+								$author$project$Game$NoteExercise$viewGameOverOrWinMessage(model),
+								A2(
+								$elm$html$Html$p,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text(
+										'numberIndex: ' + $elm$core$Debug$toString(model.numberIndex))
+									])),
+								A2(
+								$elm$html$Html$p,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text(
+										'noteAndOriginalIndexTuplePrompted: ' + $elm$core$Debug$toString(model.noteAndOriginalIndexTuplePrompted))
+									])),
+								A2(
+								$elm$html$Html$p,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text(
+										'correctPairs: ' + $elm$core$Debug$toString(model.correctPairs))
+									]))
 							]));
 				} else {
 					return A2($elm$html$Html$div, _List_Nil, _List_Nil);
@@ -13021,4 +13123,4 @@ var $author$project$Main$main = $elm$browser$Browser$application(
 		update: $author$project$Main$update,
 		view: $author$project$Main$view
 	});
-_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"},"Game.TheoryApi.Key":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Game.TheoryApi.Note ) }"},"Game.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Game.TheoryApi.Modes":{"args":[],"type":"List.List Game.TheoryApi.Mode"},"Game.TheoryApi.Note":{"args":[],"type":"String.String"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Game.NoteExercise.Msg"],"ModeExerciseMsg":["Game.ModeExercise.Msg"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Game.ModeExercise.Msg":{"args":[],"tags":{"ModesFetched":["Result.Result Http.Error Game.TheoryApi.Modes"],"ChooseGame":["Game.ModeExercise.GameMode"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[]}},"Game.NoteExercise.Msg":{"args":[],"tags":{"NoteClicked":["Basics.Int"],"NumberClicked":["Basics.Int"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Game.TheoryApi.Note )"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"Reset":["Basics.Bool"],"GameOver":[]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Game.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"List.List":{"args":["a"],"tags":{}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}}}}})}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"},"Game.TheoryApi.Key":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Game.TheoryApi.Note ) }"},"Game.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Game.TheoryApi.Modes":{"args":[],"type":"List.List Game.TheoryApi.Mode"},"Game.TheoryApi.Note":{"args":[],"type":"String.String"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Game.NoteExercise.Msg"],"ModeExerciseMsg":["Game.ModeExercise.Msg"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Game.ModeExercise.Msg":{"args":[],"tags":{"ModesFetched":["Result.Result Http.Error Game.TheoryApi.Modes"],"ChooseGame":["Game.ModeExercise.GameMode"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[]}},"Game.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Game.TheoryApi.Note )"],"ScalesFetched":["Result.Result Http.Error (List.List Game.TheoryApi.Key)"],"ChooseKey":["Game.TheoryApi.Key"],"Reset":["Basics.Bool"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Game.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"List.List":{"args":["a"],"tags":{}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}}}}})}});}(this));
