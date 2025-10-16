@@ -1,9 +1,9 @@
-module Game.ModeExercise exposing (..)
+module Games.ModeExercise exposing (..)
 
 import Array
 import Browser
-import Game.NoteExercise exposing (Msg(..))
-import Game.TheoryApi as TheoryApi
+import Games.NoteExercise exposing (Msg(..))
+import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -40,7 +40,7 @@ import Task
 
 
 type alias Model =
-    { modes : Maybe TheoryApi.Modes
+    { modes : Maybe (List TheoryApi.Mode)
     , chosenGameMode : Maybe GameMode
     , majorScales : Maybe (List TheoryApi.MajorScale)
     , chosenKey : Maybe TheoryApi.MajorScale
@@ -207,7 +207,7 @@ view model =
                             will be applied to the chosen key. Choose which mode is correct."""
                     , viewKeysOrError model
                     , viewModeGuesserGame model
-                    , Html.button [ HA.class "key-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
+                    , Html.button [ HA.class "custom-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
                     ]
 
             Just ModeBuilderGame ->
@@ -217,7 +217,7 @@ view model =
                             will be given. Your goal is to build this mode in the chosen key"""
                     , viewKeysOrError model
                     , viewModeBuilderGame model
-                    , Html.button [ HA.class "key-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
+                    , Html.button [ HA.class "custom-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
                     , viewGameOverOrWinMessage model
                     ]
 
@@ -225,9 +225,9 @@ view model =
                 Html.div []
                     [ Html.text "Please choose a game mode"
                     , Html.div []
-                        [ Html.button [ HE.onClick (ChooseGame ModeGuesserGame), HA.class "key-button" ] [ Html.text "Guess the mode" ]
+                        [ Html.button [ HE.onClick (ChooseGame ModeGuesserGame), HA.class "custom-button" ] [ Html.text "Guess the mode" ]
                         , Html.br [] []
-                        , Html.button [ HA.class "key-button", HE.onClick (ChooseGame ModeBuilderGame) ] [ Html.text "Build the mode" ]
+                        , Html.button [ HA.class "custom-button", HE.onClick (ChooseGame ModeBuilderGame) ] [ Html.text "Build the mode" ]
                         ]
                     ]
         ]
@@ -247,7 +247,7 @@ viewGameOverOrWinMessage model =
                 ]
                 [ Html.p [] [ Html.text "You win!" ]
                 , Html.p []
-                    [ Html.button [ HE.onClick Reset, HA.class "try-again-button" ] [ Html.text "Play again" ] ]
+                    [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Play again" ] ]
                 ]
 
         Just Lose ->
@@ -261,7 +261,7 @@ viewGameOverOrWinMessage model =
                 ]
                 [ Html.p [] [ Html.text "Game over" ]
                 , Html.p []
-                    [ Html.button [ HE.onClick Reset, HA.class "try-again-button" ] [ Html.text "Try again" ] ]
+                    [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Try again" ] ]
                 ]
 
         Nothing ->
@@ -281,8 +281,8 @@ viewModeBuilderGame model =
                     Html.div [] []
 
                   else
-                    Html.div [ HA.class "undo-button-container" ] [ Html.button [ HA.class "key-button", HE.onClick Undo ] [ Html.text "Undo" ] ]
-                , Html.button [ HA.class "key-button", HE.onClick SubmitBuiltMode ] [ Html.text "Submit" ]
+                    Html.div [ HA.class "undo-button-container" ] [ Html.button [ HA.class "custom-button", HE.onClick Undo ] [ Html.text "Undo" ] ]
+                , Html.button [ HA.class "custom-button", HE.onClick SubmitBuiltMode ] [ Html.text "Submit" ]
                 ]
 
         Nothing ->
@@ -325,7 +325,7 @@ viewNotesWithFlats allNotes =
 
 viewNoteButtons : String -> Html Msg
 viewNoteButtons note =
-    Html.button [ HA.class "key-button", HE.onClick (AddToModeBuilderList note) ]
+    Html.button [ HA.class "custom-button", HE.onClick (AddToModeBuilderList note) ]
         [ Html.text note ]
 
 
@@ -371,7 +371,7 @@ viewModeButton model mode =
             , ( "wrong-" ++ String.fromInt model.numberOfWrongs, isModeWrong model mode.mode )
             ]
         , HE.onClick (ModeGuessed mode.mode)
-        , HA.class "key-button"
+        , HA.class "custom-button"
         , HA.style "margin-right" "20px"
         ]
         [ Html.text mode.mode ]
@@ -418,7 +418,7 @@ viewKeysOrError model =
 viewKeyButtons : TheoryApi.MajorScale -> Html Msg
 viewKeyButtons key =
     Html.div []
-        [ Html.div [ HA.class "key-button", HE.onClick (ChooseKey key) ]
+        [ Html.div [ HA.class "custom-button", HE.onClick (ChooseKey key) ]
             [ Html.text key.key
             ]
         ]
@@ -452,7 +452,7 @@ viewConstructMode constructedNote =
 
 viewModeButtons : TheoryApi.Mode -> Html Msg
 viewModeButtons mode =
-    Html.div [ HA.class "key-button" ] [ Html.text mode.mode ]
+    Html.div [ HA.class "custom-button" ] [ Html.text mode.mode ]
 
 
 notesToListString : TheoryApi.MajorScale -> List String
@@ -515,7 +515,7 @@ checkIfModeBuiltCorrect model =
         ( { model | gameOver = True }, Task.perform (\_ -> Submitted Lose) (Process.sleep 100) )
 
 
-pickRandomMode : Maybe TheoryApi.Modes -> Int -> TheoryApi.Mode
+pickRandomMode : Maybe (List TheoryApi.Mode) -> Int -> TheoryApi.Mode
 pickRandomMode maybeModes randomIndex =
     case maybeModes of
         Just modes ->

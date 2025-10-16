@@ -2,9 +2,9 @@ module Main exposing (..)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
-import Game.ChordExercise as ChordExercise
-import Game.ModeExercise as ModeExercise
-import Game.NoteExercise as NoteExercise
+import Games.ChordExercise as ChordExercise
+import Games.ModeExercise as ModeExercise
+import Games.NoteExercise as NoteExercise
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE

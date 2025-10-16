@@ -1,6 +1,6 @@
-port module Game.NoteExercise exposing (..)
+port module Games.NoteExercise exposing (..)
 
-import Game.TheoryApi as TheoryApi
+import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -274,7 +274,7 @@ viewGameOverOrWinMessage model =
                 ]
                 [ Html.p [] [ Html.text "You win!" ]
                 , Html.p []
-                    [ Html.button [ HE.onClick (Reset True), HA.class "try-again-button" ] [ Html.text "Play again" ] ]
+                    [ Html.button [ HE.onClick (Reset True), HA.class "custom-button" ] [ Html.text "Play again" ] ]
                 ]
 
         Just Lose ->
@@ -288,7 +288,7 @@ viewGameOverOrWinMessage model =
                 ]
                 [ Html.p [] [ Html.text "Game over" ]
                 , Html.p []
-                    [ Html.button [ HE.onClick (Reset False), HA.class "try-again-button" ] [ Html.text "Try again" ] ]
+                    [ Html.button [ HE.onClick (Reset False), HA.class "custom-button" ] [ Html.text "Try again" ] ]
                 ]
 
         Nothing ->
@@ -312,10 +312,8 @@ viewKeysOrError model =
 
 viewKeyButtons : TheoryApi.MajorScale -> Html Msg
 viewKeyButtons key =
-    Html.div []
-        [ Html.div [ HA.class "key-button", HE.onClick (ChooseKey key) ]
-            [ Html.text key.key
-            ]
+    Html.div [ HA.class "custom-button", HE.onClick (ChooseKey key) ]
+        [ Html.text key.key
         ]
 
 
@@ -323,7 +321,7 @@ viewNumberButtons : Model -> Int -> Html Msg
 viewNumberButtons model number =
     Html.button
         [ HE.onClick (NumberClicked number)
-        , HA.class "number-button"
+        , HA.class "custom-button"
         , HA.disabled model.gameOver
         ]
         [ Html.h1

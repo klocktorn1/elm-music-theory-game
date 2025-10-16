@@ -131,10 +131,7 @@ button {
   all: unset;
 }
 
-.note-button,
-.number-button,
-.key-button,
-.try-again-button {
+.custom-button {
   transition: 0.1s;
 
   &:hover {

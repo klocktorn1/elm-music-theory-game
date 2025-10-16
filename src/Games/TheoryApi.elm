@@ -1,7 +1,8 @@
-module Game.TheoryApi exposing (MajorScale, Mode, Modes, Note, TheoryDb, fetchTheoryDb, buildErrorMessage)
+module Games.TheoryApi exposing (Chord, MajorScale, Mode, Note, TheoryDb, buildErrorMessage, fetchTheoryDb)
 
 import Http
 import Json.Decode as Decode
+
 
 
 type alias Note =
@@ -12,6 +13,13 @@ type alias TheoryDb =
     { majorScales : List MajorScale
     , modes : List Mode
     , allNotes : List Note
+    , chords : List Chord
+    }
+
+
+type alias Chord =
+    { name : String
+    , formula : List String
     }
 
 
@@ -19,10 +27,6 @@ type alias MajorScale =
     { key : String
     , notes : List ( Int, Note )
     }
-
-
-type alias Modes =
-    List Mode
 
 
 type alias Mode =
@@ -33,10 +37,11 @@ type alias Mode =
 
 theoryDbDecoder : Decode.Decoder TheoryDb
 theoryDbDecoder =
-    Decode.map3 TheoryDb
+    Decode.map4 TheoryDb
         (Decode.field "major-scales" (Decode.list majorScaleDecoder))
         (Decode.field "modes" (Decode.list modeDecoder))
         (Decode.field "all-notes" (Decode.list Decode.string))
+        (Decode.field "chords" (Decode.list chordDecoder))
 
 
 majorScaleDecoder : Decode.Decoder MajorScale
@@ -55,13 +60,19 @@ modeDecoder =
         (Decode.field "formula" (Decode.list Decode.string))
 
 
+chordDecoder : Decode.Decoder Chord
+chordDecoder =
+    Decode.map2 Chord
+        (Decode.field "name" Decode.string)
+        (Decode.field "formula" (Decode.list Decode.string))
+
+
 fetchTheoryDb : (Result Http.Error TheoryDb -> msg) -> Cmd msg
 fetchTheoryDb toMsg =
     Http.get
         { url = "http://localhost:5019/theory-db"
         , expect = Http.expectJson toMsg theoryDbDecoder
         }
-
 
 
 buildErrorMessage : Http.Error -> String
@@ -81,57 +92,3 @@ buildErrorMessage httpError =
 
         Http.BadBody message ->
             "BadBody: " ++ message
-
-
-
-{-
-
-   type Foo
-       = A { x : Int }
-       | B { y : String }
-
-
-   decodeFoo : Decode.Decoder Foo
-   decodeFoo =
-       Decode.field "type" Decode.string
-           |> Decode.andThen
-               (\type_ ->
-                   case type_ of
-                       "A" ->
-                           Decode.map
-                               (\x -> A { x = x })
-                               (Decode.field "x" Decode.int)
-
-                       _ ->
-                           Decode.fail "Unkown tag"
-               )
-
-
--}
-{-
-
-   fetchScales : (Result Http.Error (List Key) -> msg) -> Cmd msg
-   fetchScales toMsg =
-       Http.get
-           { url = "http://localhost:5019/scales"
-           , expect = Http.expectJson toMsg (Decode.list scaleDecoder)
-           }
-
-
-   fetchModes : (Result Http.Error Modes -> msg) -> Cmd msg
-   fetchModes toMsg =
-       Http.get
-           { url = "http://localhost:5019/modes"
-           , expect = Http.expectJson toMsg (Decode.list modeDecoder)
-           }
-
-
-   fetchAllNotes : (Result Http.Error AllNotes -> msg) -> Cmd msg
-   fetchAllNotes toMsg =
-       Http.get
-           { url = "http://localhost:5019/all-notes"
-           , expect = Http.expectJson toMsg allNotesDecoder
-           }
-
-
--}
