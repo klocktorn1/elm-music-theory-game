@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
+import Game.ChordExercise as ChordExercise
 import Game.ModeExercise as ModeExercise
 import Game.NoteExercise as NoteExercise
 import Html exposing (Html)
@@ -18,6 +19,7 @@ type alias Model =
     , route : Route
     , noteExerciseModel : NoteExercise.Model
     , modeExerciseModel : ModeExercise.Model
+    , chordExerciseModel : ChordExercise.Model
     }
 
 
@@ -26,6 +28,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | NoteExerciseMsg NoteExercise.Msg
     | ModeExerciseMsg ModeExercise.Msg
+    | ChordExerciseMsg ChordExercise.Msg
 
 
 type Route
@@ -62,6 +65,9 @@ init flags url key =
 
         ( modeExerciseModel, modeExerciseCmd ) =
             ModeExercise.init flags
+
+        ( chordExerciseModel, chordExerciseCmd ) =
+            ChordExercise.init flags
     in
     ( { value = 0
       , url = url
@@ -69,8 +75,19 @@ init flags url key =
       , route = route
       , noteExerciseModel = noteExerciseModel
       , modeExerciseModel = modeExerciseModel
+      , chordExerciseModel = chordExerciseModel
       }
-    , Cmd.batch [ Cmd.map NoteExerciseMsg noteExerciseCmd, Cmd.map ModeExerciseMsg modeExerciseCmd ]
+    , Cmd.batch
+        [ Cmd.map
+            NoteExerciseMsg
+            noteExerciseCmd
+        , Cmd.map
+            ModeExerciseMsg
+            modeExerciseCmd
+        , Cmd.map
+            ChordExerciseMsg
+            chordExerciseCmd
+        ]
     )
 
 
@@ -120,6 +137,15 @@ update msg model =
             , Cmd.map ModeExerciseMsg cmd
             )
 
+        ChordExerciseMsg subMsg ->
+            let
+                ( updatedGameModel, cmd ) =
+                    ChordExercise.update subMsg model.chordExerciseModel
+            in
+            ( { model | chordExerciseModel = updatedGameModel }
+            , Cmd.map ChordExerciseMsg cmd
+            )
+
 
 view : Model -> Browser.Document Msg
 view model =
@@ -157,7 +183,7 @@ viewHeader currentPath =
                 [ Html.li [] [ viewLink "Home" "/home" currentPath ]
                 , Html.li [] [ viewLink "Note exercise" "/game/note-exercise" currentPath ]
                 , Html.li [] [ viewLink "Mode exercise" "/game/mode-exercise" currentPath ]
-                , Html.li [] [ viewLink "Game 3" "/game/qwe" currentPath ]
+                , Html.li [] [ viewLink "Chord Exercise" "/game/chord-exercise" currentPath ]
                 ]
             ]
         ]
@@ -176,6 +202,9 @@ viewRoute model =
 
                 "mode-exercise" ->
                     Html.map ModeExerciseMsg (ModeExercise.view model.modeExerciseModel)
+
+                "chord-exercise" ->
+                    Html.map ChordExerciseMsg (ChordExercise.view model.chordExerciseModel)
 
                 _ ->
                     Html.text ("Unknown game: " ++ gameName)

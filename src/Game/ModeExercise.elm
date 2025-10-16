@@ -8,6 +8,7 @@ import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import Http
+import List.Extra as ListExtra
 import Process
 import Random
 import Task
@@ -54,6 +55,8 @@ type alias Model =
     , numberOfWrongs : Int
     , allNotes : Maybe (List String)
     , userBuiltMode : List String
+    , result : Maybe SubmitResult
+    , gameOver : Bool
     }
 
 
@@ -68,10 +71,18 @@ type Msg
     | GoBack
     | AddToModeBuilderList String
     | SubmitBuiltMode
+    | Submitted SubmitResult
+    | Undo
+    | Reset
 
 
 type alias Flags =
     String
+
+
+type SubmitResult
+    = Win
+    | Lose
 
 
 type GameMode
@@ -101,6 +112,8 @@ init _ =
       , numberOfWrongs = 0
       , allNotes = Nothing
       , userBuiltMode = []
+      , result = Nothing
+      , gameOver = False
       }
     , Cmd.batch [ fetchTheoryDb ]
     )
@@ -162,6 +175,26 @@ update msg model =
         SubmitBuiltMode ->
             checkIfModeBuiltCorrect model
 
+        Submitted result ->
+            case result of
+                Win ->
+                    ( { model | result = Just result }, Cmd.none )
+
+                Lose ->
+                    ( { model | result = Just result }, Cmd.none )
+
+        Undo ->
+            ( { model | userBuiltMode = List.drop 1 model.userBuiltMode }, Cmd.none )
+
+        Reset ->
+            ( { model
+                | gameOver = False
+                , userBuiltMode = []
+                , result = Nothing
+              }
+            , randomizeMode
+            )
+
 
 view : Model -> Html Msg
 view model =
@@ -185,6 +218,7 @@ view model =
                     , viewKeysOrError model
                     , viewModeBuilderGame model
                     , Html.button [ HA.class "key-button", HE.onClick GoBack ] [ Html.text "<--- Go back" ]
+                    , viewGameOverOrWinMessage model
                     ]
 
             Nothing ->
@@ -199,17 +233,55 @@ view model =
         ]
 
 
+viewGameOverOrWinMessage : Model -> Html Msg
+viewGameOverOrWinMessage model =
+    case model.result of
+        Just Win ->
+            Html.div
+                [ HA.class "game-over-message-container"
+                , if not model.gameOver then
+                    HA.style "display" "none"
+
+                  else
+                    HA.style "display" ""
+                ]
+                [ Html.p [] [ Html.text "You win!" ]
+                , Html.p []
+                    [ Html.button [ HE.onClick Reset, HA.class "try-again-button" ] [ Html.text "Play again" ] ]
+                ]
+
+        Just Lose ->
+            Html.div
+                [ HA.class "game-over-message-container"
+                , if not model.gameOver then
+                    HA.style "display" "none"
+
+                  else
+                    HA.style "display" ""
+                ]
+                [ Html.p [] [ Html.text "Game over" ]
+                , Html.p []
+                    [ Html.button [ HE.onClick Reset, HA.class "try-again-button" ] [ Html.text "Try again" ] ]
+                ]
+
+        Nothing ->
+            Html.div [] []
+
+
 viewModeBuilderGame : Model -> Html Msg
 viewModeBuilderGame model =
     case model.chosenKey of
         Just chosenKey ->
             Html.div []
                 [ Html.p [] [ Html.text ("Please build the " ++ chosenKey.key ++ " " ++ model.randomizedMode.mode ++ " mode") ]
-                , Html.p []
-                    ([]
-                        ++ List.reverse (List.map viewUserBuiltMode model.userBuiltMode)
-                    )
-                , viewAllNotes model
+                , viewNotes model chosenKey.key
+                , Html.p [ HA.class "user-built-mode-notes-container" ]
+                    (List.reverse (List.map viewUserBuiltMode model.userBuiltMode))
+                , if model.userBuiltMode == [] then
+                    Html.div [] []
+
+                  else
+                    Html.div [ HA.class "undo-button-container" ] [ Html.button [ HA.class "key-button", HE.onClick Undo ] [ Html.text "Undo" ] ]
                 , Html.button [ HA.class "key-button", HE.onClick SubmitBuiltMode ] [ Html.text "Submit" ]
                 ]
 
@@ -219,24 +291,42 @@ viewModeBuilderGame model =
 
 viewUserBuiltMode : String -> Html Msg
 viewUserBuiltMode note =
-    Html.text (note ++ " ")
+    Html.div [] [ Html.text (note ++ " ") ]
 
 
-viewAllNotes : Model -> Html Msg
-viewAllNotes model =
+viewNotes : Model -> String -> Html Msg
+viewNotes model chosenKey =
     case model.allNotes of
         Just allNotes ->
             Html.div []
-                (List.map
-                    (\note ->
-                        Html.button [ HA.class "key-button", HE.onClick (AddToModeBuilderList note) ]
-                            [ Html.text (note ++ ",") ]
-                    )
-                    allNotes
-                )
+                [ Html.div [ HA.class "note-builder-container" ] (List.map viewNoteButtons (viewNotesWithSharps (rotateList chosenKey allNotes)))
+                , Html.div [ HA.class "note-builder-container" ] (List.map viewNoteButtons (viewNotesWithoutAccidentals (rotateList chosenKey allNotes)))
+                , Html.div [ HA.class "note-builder-container" ] (List.map viewNoteButtons (viewNotesWithFlats (rotateList chosenKey allNotes)))
+                ]
 
         Nothing ->
             Html.div [] [ Html.text "No notes" ]
+
+
+viewNotesWithSharps : List String -> List String
+viewNotesWithSharps allNotes =
+    List.filter (\note -> String.slice 1 2 note == "#") allNotes
+
+
+viewNotesWithoutAccidentals : List String -> List String
+viewNotesWithoutAccidentals allNotes =
+    List.filter (\note -> String.length note == 1) allNotes
+
+
+viewNotesWithFlats : List String -> List String
+viewNotesWithFlats allNotes =
+    List.filter (\note -> String.slice 1 2 note == "b") allNotes
+
+
+viewNoteButtons : String -> Html Msg
+viewNoteButtons note =
+    Html.button [ HA.class "key-button", HE.onClick (AddToModeBuilderList note) ]
+        [ Html.text note ]
 
 
 viewModeGuesserGame : Model -> Html Msg
@@ -334,6 +424,24 @@ viewKeyButtons key =
         ]
 
 
+rotateList : String -> List String -> List String
+rotateList note allNotes =
+    case ListExtra.findIndex (\noteFromList -> note == noteFromList) allNotes of
+        Just index ->
+            let
+                (start, end) =
+                    ListExtra.splitAt index allNotes    
+            in
+            end ++ start
+            
+        Nothing ->
+            []
+
+
+
+-- if note not found, return original
+
+
 viewConstructMode : String -> Html Msg
 viewConstructMode constructedNote =
     Html.div []
@@ -388,22 +496,23 @@ checkIfModeGuessCorrect model =
         )
 
 
-checkIfModeBuiltCorrect : Model -> ( Model, Cmd Msg )
-checkIfModeBuiltCorrect model =
+isCorrectHelper : Model -> Bool
+isCorrectHelper model =
     case model.chosenKey of
         Just chosenKey ->
-            if List.reverse model.userBuiltMode == constructMode model.randomizedMode.formula (notesToListString chosenKey) then
-                let
-                    _ =
-                        Debug.log "You win!" ""
-                in
-                ( model, Cmd.none )
-
-            else
-                ( model, Cmd.none )
+            List.reverse model.userBuiltMode == constructMode model.randomizedMode.formula (notesToListString chosenKey)
 
         Nothing ->
-            ( model, Cmd.none )
+            False
+
+
+checkIfModeBuiltCorrect : Model -> ( Model, Cmd Msg )
+checkIfModeBuiltCorrect model =
+    if isCorrectHelper model then
+        ( { model | gameOver = True }, Task.perform (\_ -> Submitted Win) (Process.sleep 100) )
+
+    else
+        ( { model | gameOver = True }, Task.perform (\_ -> Submitted Lose) (Process.sleep 100) )
 
 
 pickRandomMode : Maybe TheoryApi.Modes -> Int -> TheoryApi.Mode
