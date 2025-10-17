@@ -42,8 +42,8 @@ import Task
 type alias Model =
     { modes : Maybe (List TheoryApi.Mode)
     , chosenGameMode : Maybe GameMode
-    , majorScales : Maybe (List TheoryApi.MajorScale)
-    , chosenKey : Maybe TheoryApi.MajorScale
+    , majorScalesAndKeys : Maybe (List TheoryApi.MajorScaleAndKey)
+    , chosenKey : Maybe TheoryApi.MajorScaleAndKey
     , randomizedMode : TheoryApi.Mode
     , modesErrorMessage : Maybe String
     , errorMessage : Maybe String
@@ -61,9 +61,9 @@ type alias Model =
 
 
 type Msg
-    = TheoryDbFetched (Result Http.Error TheoryApi.TheoryDb)
+    = GotTheoryDb TheoryApi.TheoryDb
     | ChooseGame GameMode
-    | ChooseKey TheoryApi.MajorScale
+    | ChooseKey TheoryApi.MajorScaleAndKey
     | PickRandomMode Int
     | ModeGuessed String
     | RandomizeMode
@@ -90,16 +90,11 @@ type GameMode
     | ModeBuilderGame
 
 
-fetchTheoryDb : Cmd Msg
-fetchTheoryDb =
-    TheoryApi.fetchTheoryDb TheoryDbFetched
-
-
 init : Flags -> ( Model, Cmd Msg )
 init _ =
     ( { modes = Nothing
       , chosenGameMode = Nothing
-      , majorScales = Nothing
+      , majorScalesAndKeys = Nothing
       , chosenKey = Nothing
       , randomizedMode = { mode = "No mode randomized yet", formula = [] }
       , modesErrorMessage = Nothing
@@ -115,30 +110,27 @@ init _ =
       , result = Nothing
       , gameOver = False
       }
-    , Cmd.batch [ fetchTheoryDb ]
+    , Cmd.none
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GotTheoryDb db ->
+            ( { model
+                | modes = Just db.modes
+                , majorScalesAndKeys = Just db.majorScalesAndKeys
+                , allNotes = Just db.allNotes
+              }
+            , Cmd.none
+            )
+
         ChooseGame gameMode ->
             ( { model | chosenGameMode = Just gameMode }, Cmd.none )
 
         GoBack ->
             ( { model | chosenGameMode = Nothing }, Cmd.none )
-
-        TheoryDbFetched (Ok theoryDb) ->
-            ( { model
-                | modes = Just theoryDb.modes
-                , majorScales = Just theoryDb.majorScales
-                , allNotes = Just theoryDb.allNotes
-              }
-            , Cmd.none
-            )
-
-        TheoryDbFetched (Err httpError) ->
-            ( { model | errorMessage = Just (TheoryApi.buildErrorMessage httpError) }, Cmd.none )
 
         ChooseKey key ->
             let
@@ -387,7 +379,7 @@ isModeWrong model modeName =
     model.isWrong && (model.modeGuessed == Just modeName)
 
 
-viewConstructedMode : TheoryApi.MajorScale -> List String -> Html Msg
+viewConstructedMode : TheoryApi.MajorScaleAndKey -> List String -> Html Msg
 viewConstructedMode chosenKey mode =
     Html.div [ HA.class "mode-container" ]
         (List.append [ Html.text "Mode: " ]
@@ -407,15 +399,15 @@ viewKeysOrError model =
                 [ Html.text error ]
 
         Nothing ->
-            case model.majorScales of
-                Just majorScales ->
-                    Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons majorScales)
+            case model.majorScalesAndKeys of
+                Just majorScalesAndKeys ->
+                    Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons majorScalesAndKeys)
 
                 Nothing ->
                     Html.div [] [ Html.text "something else" ]
 
 
-viewKeyButtons : TheoryApi.MajorScale -> Html Msg
+viewKeyButtons : TheoryApi.MajorScaleAndKey -> Html Msg
 viewKeyButtons key =
     Html.div []
         [ Html.div [ HA.class "custom-button", HE.onClick (ChooseKey key) ]
@@ -429,11 +421,11 @@ rotateList note allNotes =
     case ListExtra.findIndex (\noteFromList -> note == noteFromList) allNotes of
         Just index ->
             let
-                (start, end) =
-                    ListExtra.splitAt index allNotes    
+                ( start, end ) =
+                    ListExtra.splitAt index allNotes
             in
             end ++ start
-            
+
         Nothing ->
             []
 
@@ -455,7 +447,7 @@ viewModeButtons mode =
     Html.div [ HA.class "custom-button" ] [ Html.text mode.mode ]
 
 
-notesToListString : TheoryApi.MajorScale -> List String
+notesToListString : TheoryApi.MajorScaleAndKey -> List String
 notesToListString key =
     List.map Tuple.second key.notes
 
@@ -539,11 +531,3 @@ randomizeMode =
     Random.generate PickRandomMode (Random.int 0 6)
 
 
-main : Program Flags Model Msg
-main =
-    Browser.element
-        { init = init
-        , update = update
-        , view = view
-        , subscriptions = \_ -> Sub.none
-        }

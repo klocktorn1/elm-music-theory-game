@@ -19,17 +19,12 @@ import Task
    when clicking the same wron two times in a row it doesnt go red.
    when clicking the third mistake and game ends button doesnt go red
 
-
-
-
-
-
 -}
 
 
 type alias Model =
-    { chosenScale : Maybe TheoryApi.MajorScale
-    , majorScales : Maybe (List TheoryApi.MajorScale)
+    { maybeChosenScale : Maybe TheoryApi.MajorScaleAndKey
+    , maybeMajorScalesAndKeys : Maybe (List TheoryApi.MajorScaleAndKey)
     , score : Int
     , correctPairs : Set CorrectPair
     , wrongPair : Maybe ( Int, Int )
@@ -60,10 +55,10 @@ type alias WrongPair =
 
 type Msg
     = NumberClicked Int
+    | GotTheoryDb TheoryApi.TheoryDb
     | Shuffle
     | Shuffled (List ( Int, TheoryApi.Note ))
-    | TheoryDbFetched (Result Http.Error TheoryApi.TheoryDb)
-    | ChooseKey TheoryApi.MajorScale
+    | ChooseKey TheoryApi.MajorScaleAndKey
     | Reset Bool
 
 
@@ -82,15 +77,13 @@ saveWins numberOfWins =
         |> sendToLocalStorage
 
 
-fetchTheoryDb : Cmd Msg
-fetchTheoryDb =
-    TheoryApi.fetchTheoryDb TheoryDbFetched
+
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    ( { chosenScale = Nothing
-      , majorScales = Nothing
+    ( { maybeChosenScale = Nothing
+      , maybeMajorScalesAndKeys = Nothing
       , score = 0
       , correctPairs = Set.empty
       , wrongPair = Nothing
@@ -105,7 +98,7 @@ init flags =
       , noteAndOriginalIndexTuplePrompted = Nothing
       , result = Nothing
       }
-    , Cmd.batch [ fetchTheoryDb ]
+    , Cmd.none
     )
 
 
@@ -122,8 +115,11 @@ update msg model =
             in
             newModel
 
+        GotTheoryDb db ->
+            ({model | maybeMajorScalesAndKeys = Just db.majorScalesAndKeys}, Cmd.none)
+
         Shuffle ->
-            case model.chosenScale of
+            case model.maybeChosenScale of
                 Just scale ->
                     ( model, Random.generate Shuffled (RandomList.shuffle scale.notes) )
 
@@ -131,7 +127,7 @@ update msg model =
                     ( model, Cmd.none )
 
         Shuffled newNotes ->
-            case model.chosenScale of
+            case model.maybeChosenScale of
                 Just scale ->
                     let
                         newScale =
@@ -143,7 +139,7 @@ update msg model =
                     case maybeFirstNote of
                         Just firstNote ->
                             ( { model
-                                | chosenScale = Just newScale
+                                | maybeChosenScale = Just newScale
                                 , noteAndOriginalIndexTuplePrompted = Just firstNote
                                 , exerciseStep = 0
                                 , correctPairs = Set.empty
@@ -159,17 +155,11 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        TheoryDbFetched (Ok theoryDb) ->
-            ( { model | majorScales = Just theoryDb.majorScales }, Cmd.none )
-
-        TheoryDbFetched (Err httpError) ->
-            ( { model | errorMessage = Just (TheoryApi.buildErrorMessage httpError) }, Cmd.none )
-
         ChooseKey scale ->
             let
                 newModel =
                     ( { model
-                        | chosenScale = Just scale
+                        | maybeChosenScale = Just scale
                         , score = 0
                         , numberIndex = 7
                         , correctPairs = Set.empty
@@ -184,14 +174,14 @@ update msg model =
             newModel
 
         Reset shuffle ->
-            case model.chosenScale of
+            case model.maybeChosenScale of
                 Just scale ->
                     let
                         firstNote =
                             List.head scale.notes
                     in
                     ( { model
-                        | chosenScale = Just scale
+                        | maybeChosenScale = Just scale
                         , numberIndex = 7
                         , correctPairs = Set.empty
                         , wrongPair = Nothing
@@ -218,7 +208,7 @@ view model =
         , Html.div [] [ Html.text "Pick a major scale:" ]
         , Html.text "Pick a key. Match the note with the corresponding number in that scale (C1 D2 E3 F4 G5 A6 B7 in C for example)"
         , viewKeysOrError model
-        , case model.chosenScale of
+        , case model.maybeChosenScale of
             Just scale ->
                 Html.div []
                     [ if model.isButtonDisabled then
@@ -302,15 +292,15 @@ viewKeysOrError model =
             Html.div [] [ Html.text errorMessage ]
 
         Nothing ->
-            case model.majorScales of
-                Just majorScales ->
-                    Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons majorScales)
+            case model.maybeMajorScalesAndKeys of
+                Just majorScalesAndKeys ->
+                    Html.div [ HA.class "key-buttons-container" ] (List.map viewKeyButtons majorScalesAndKeys)
 
                 Nothing ->
                     Html.div [] [ Html.text "something else" ]
 
 
-viewKeyButtons : TheoryApi.MajorScale -> Html Msg
+viewKeyButtons : TheoryApi.MajorScaleAndKey -> Html Msg
 viewKeyButtons key =
     Html.div [ HA.class "custom-button", HE.onClick (ChooseKey key) ]
         [ Html.text key.key
@@ -372,7 +362,7 @@ checkClickedValues model =
                         model.numberOfWins + 1
 
                     maybeNextNote =
-                        model.chosenScale
+                        model.maybeChosenScale
                             |> Maybe.map (\scale -> List.drop nextExerciseStep scale.notes)
                             |> Maybe.andThen List.head
 

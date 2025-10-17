@@ -5,18 +5,21 @@ import Browser.Navigation as Nav
 import Games.ChordExercise as ChordExercise
 import Games.ModeExercise as ModeExercise
 import Games.NoteExercise as NoteExercise
+import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
+import Http
+import RemoteData
 import Url
 import Url.Parser as UP exposing ((</>), (<?>))
 
 
 type alias Model =
-    { value : Int
-    , url : Url.Url
+    { url : Url.Url
     , key : Nav.Key
     , route : Route
+    , theoryDb : RemoteData.WebData TheoryApi.TheoryDb
     , noteExerciseModel : NoteExercise.Model
     , modeExerciseModel : ModeExercise.Model
     , chordExerciseModel : ChordExercise.Model
@@ -29,6 +32,7 @@ type Msg
     | NoteExerciseMsg NoteExercise.Msg
     | ModeExerciseMsg ModeExercise.Msg
     | ChordExerciseMsg ChordExercise.Msg
+    | GotTheoryDb (Result Http.Error TheoryApi.TheoryDb)
 
 
 type Route
@@ -69,13 +73,13 @@ init flags url key =
         ( chordExerciseModel, chordExerciseCmd ) =
             ChordExercise.init flags
     in
-    ( { value = 0
-      , url = url
+    ( { url = url
       , key = key
       , route = route
       , noteExerciseModel = noteExerciseModel
       , modeExerciseModel = modeExerciseModel
       , chordExerciseModel = chordExerciseModel
+      , theoryDb = RemoteData.Loading
       }
     , Cmd.batch
         [ Cmd.map
@@ -87,6 +91,7 @@ init flags url key =
         , Cmd.map
             ChordExerciseMsg
             chordExerciseCmd
+        , TheoryApi.fetchTheoryDb GotTheoryDb
         ]
     )
 
@@ -140,11 +145,38 @@ update msg model =
         ChordExerciseMsg subMsg ->
             let
                 ( updatedGameModel, cmd ) =
-                    ChordExercise.update subMsg model.chordExerciseModel
+                    ChordExercise.update subMsg model.chordExerciseModel 
             in
             ( { model | chordExerciseModel = updatedGameModel }
             , Cmd.map ChordExerciseMsg cmd
             )
+
+        GotTheoryDb (Ok db) ->
+            let
+                ( updatedNoteModel, noteCmd ) =
+                    NoteExercise.update (NoteExercise.GotTheoryDb db) model.noteExerciseModel
+
+                ( updatedModeModel, modeCmd ) =
+                    ModeExercise.update (ModeExercise.GotTheoryDb db) model.modeExerciseModel
+
+                ( updatedChordModel, chordCmd ) =
+                    ChordExercise.update (ChordExercise.GotTheoryDb db) model.chordExerciseModel 
+            in
+            ( { model
+                | theoryDb = RemoteData.Success db
+                , noteExerciseModel = updatedNoteModel
+                , modeExerciseModel = updatedModeModel
+                , chordExerciseModel = updatedChordModel
+              }
+            , Cmd.batch 
+                [ Cmd.map NoteExerciseMsg noteCmd
+                , Cmd.map ModeExerciseMsg modeCmd
+                , Cmd.map ChordExerciseMsg chordCmd
+                ]
+            )
+
+        GotTheoryDb (Err error) ->
+            ( model, Cmd.none )
 
 
 view : Model -> Browser.Document Msg

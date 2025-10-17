@@ -1,24 +1,22 @@
 module Games.ChordExercise exposing (..)
 
-import Browser
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
-import Http
 import List.Extra as ListExtra
 
 
 type alias Model =
-    { chords : Maybe (List TheoryApi.Chord)
-    , majorScales : Maybe (List TheoryApi.MajorScale)
+    { maybeChords : Maybe (List TheoryApi.Chord)
+    , maybeMajorScalesAndKeys : Maybe (List TheoryApi.MajorScaleAndKey)
     , chosenKey : Maybe String
     }
 
 
 type Msg
-    = TheoryDbFetched (Result Http.Error TheoryApi.TheoryDb)
-    | ChooseKey String
+    = ChooseKey String
+    | GotTheoryDb TheoryApi.TheoryDb
 
 
 type alias Flags =
@@ -27,61 +25,48 @@ type alias Flags =
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    ( { chords = Nothing
-      , majorScales = Nothing
+    ( { maybeChords = Nothing
+      , maybeMajorScalesAndKeys = Nothing
       , chosenKey = Nothing
       }
-    , TheoryApi.fetchTheoryDb TheoryDbFetched
+    , Cmd.none
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        TheoryDbFetched (Ok theoryDb) ->
-            ( { model
-                | chords = Just theoryDb.chords
-                , majorScales = Just theoryDb.majorScales
-              }
-            , Cmd.none
-            )
-
-        TheoryDbFetched (Err httpError) ->
-            ( model, Cmd.none )
-
         ChooseKey key ->
             ( { model | chosenKey = Just key }, Cmd.none )
+
+        GotTheoryDb db ->
+            let
+                _ =
+                    Debug.log "" db
+            in
+            ( { model | maybeMajorScalesAndKeys = Just db.majorScalesAndKeys }, Cmd.none )
+
 
 
 view : Model -> Html Msg
 view model =
-    case model.majorScales of
-        Just majorScales ->
+    case model.maybeMajorScalesAndKeys of
+        Just majorScalesAndKeys ->
             Html.div []
                 [ Html.text "Chord exercise"
                 , Html.div [ HA.class "key-buttons-container" ]
-                    (List.map viewKeys majorScales)
+                    (List.map viewKeys majorScalesAndKeys)
                 ]
 
         Nothing ->
-            Html.div [] [ Html.text "Please choose a key" ]
+            Html.div [] [ Html.text "Please choose a key"]
 
 
-viewKeys : TheoryApi.MajorScale -> Html Msg
-viewKeys majorScale =
-    Html.button [HA.class "custom-button"] [ Html.text majorScale.key ]
+viewKeys : TheoryApi.MajorScaleAndKey -> Html Msg
+viewKeys majorScaleAndKey =
+    Html.button [ HA.class "custom-button" ] [ Html.text majorScaleAndKey.key ]
 
 
 chordConstructor : List String -> List String
-chordConstructor majorScale =
-    ListExtra.removeIfIndex (\index -> modBy 2 index == 0) majorScale
-
-
-main : Program Flags Model Msg
-main =
-    Browser.element
-        { init = init
-        , update = update
-        , view = view
-        , subscriptions = \_ -> Sub.none
-        }
+chordConstructor majorScaleAndKey =
+    ListExtra.removeIfIndex (\index -> modBy 2 index == 0) majorScaleAndKey
