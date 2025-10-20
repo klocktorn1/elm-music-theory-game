@@ -11140,7 +11140,7 @@ var $author$project$Games$TheoryApi$fetchTheoryDb = function (toMsg) {
 };
 var $author$project$Games$ChordExercise$init = function (flags) {
 	return _Utils_Tuple2(
-		{chosenKey: $elm$core$Maybe$Nothing, maybeChords: $elm$core$Maybe$Nothing, maybeMajorScalesAndKeys: $elm$core$Maybe$Nothing},
+		{chosenKeyAndScale: $elm$core$Maybe$Nothing, constructedChosenChord: _List_Nil, constructedRandomizedChord: _List_Nil, gameOver: false, maybeChords: $elm$core$Maybe$Nothing, maybeChosenChord: $elm$core$Maybe$Nothing, maybeMajorScalesAndKeys: $elm$core$Maybe$Nothing, randomizedChord: $elm$core$Maybe$Nothing, result: $elm$core$Maybe$Nothing},
 		$elm$core$Platform$Cmd$none);
 };
 var $author$project$Games$ModeExercise$init = function (_v0) {
@@ -11543,145 +11543,11 @@ var $elm$url$Url$toString = function (url) {
 					_Utils_ap(http, url.host)),
 				url.path)));
 };
+var $author$project$Games$ChordExercise$Lose = {$: 'Lose'};
+var $author$project$Games$ChordExercise$Win = {$: 'Win'};
 var $elm$core$Debug$log = _Debug_log;
-var $author$project$Games$ChordExercise$update = F2(
-	function (msg, model) {
-		if (msg.$ === 'ChooseKey') {
-			var key = msg.a;
-			return _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{
-						chosenKey: $elm$core$Maybe$Just(key)
-					}),
-				$elm$core$Platform$Cmd$none);
-		} else {
-			var db = msg.a;
-			var _v1 = A2($elm$core$Debug$log, '', db);
-			return _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{
-						maybeMajorScalesAndKeys: $elm$core$Maybe$Just(db.majorScalesAndKeys)
-					}),
-				$elm$core$Platform$Cmd$none);
-		}
-	});
-var $author$project$Games$ModeExercise$Lose = {$: 'Lose'};
-var $author$project$Games$ModeExercise$Submitted = function (a) {
-	return {$: 'Submitted', a: a};
-};
-var $author$project$Games$ModeExercise$Win = {$: 'Win'};
-var $elm$core$String$replace = F3(
-	function (before, after, string) {
-		return A2(
-			$elm$core$String$join,
-			after,
-			A2($elm$core$String$split, before, string));
-	});
-var $author$project$Games$ModeExercise$constructMode = F2(
-	function (mode, key) {
-		return A2(
-			$elm$core$List$map,
-			A2($elm$core$String$replace, 'b#', ''),
-			A2(
-				$elm$core$List$map,
-				A2($elm$core$String$replace, '#b', ''),
-				A3($elm$core$List$map2, $elm$core$Basics$append, key, mode)));
-	});
-var $author$project$Games$ModeExercise$notesToListString = function (key) {
-	return A2($elm$core$List$map, $elm$core$Tuple$second, key.notes);
-};
-var $author$project$Games$ModeExercise$isCorrectHelper = function (model) {
-	var _v0 = model.chosenKey;
-	if (_v0.$ === 'Just') {
-		var chosenKey = _v0.a;
-		return _Utils_eq(
-			$elm$core$List$reverse(model.userBuiltMode),
-			A2(
-				$author$project$Games$ModeExercise$constructMode,
-				model.randomizedMode.formula,
-				$author$project$Games$ModeExercise$notesToListString(chosenKey)));
-	} else {
-		return false;
-	}
-};
-var $elm$core$Process$sleep = _Process_sleep;
-var $author$project$Games$ModeExercise$checkIfModeBuiltCorrect = function (model) {
-	return $author$project$Games$ModeExercise$isCorrectHelper(model) ? _Utils_Tuple2(
-		_Utils_update(
-			model,
-			{gameOver: true}),
-		A2(
-			$elm$core$Task$perform,
-			function (_v0) {
-				return $author$project$Games$ModeExercise$Submitted($author$project$Games$ModeExercise$Win);
-			},
-			$elm$core$Process$sleep(100))) : _Utils_Tuple2(
-		_Utils_update(
-			model,
-			{gameOver: true}),
-		A2(
-			$elm$core$Task$perform,
-			function (_v1) {
-				return $author$project$Games$ModeExercise$Submitted($author$project$Games$ModeExercise$Lose);
-			},
-			$elm$core$Process$sleep(100)));
-};
-var $author$project$Games$ModeExercise$RandomizeMode = {$: 'RandomizeMode'};
-var $author$project$Games$ModeExercise$ResetWrong = {$: 'ResetWrong'};
-var $author$project$Games$ModeExercise$checkIfModeGuessCorrect = function (model) {
-	if (_Utils_eq(
-		model.modeGuessed,
-		$elm$core$Maybe$Just(model.randomizedMode.mode))) {
-		return _Utils_Tuple2(
-			_Utils_update(
-				model,
-				{isCorrect: true, isWrong: false, resultMessage: 'Correct!', score: model.score + 1}),
-			A2(
-				$elm$core$Task$perform,
-				function (_v0) {
-					return $author$project$Games$ModeExercise$RandomizeMode;
-				},
-				$elm$core$Process$sleep(500)));
-	} else {
-		var resetCmd = A2(
-			$elm$core$Task$perform,
-			function (_v1) {
-				return $author$project$Games$ModeExercise$ResetWrong;
-			},
-			$elm$core$Process$sleep(500));
-		var newNumberOfWrongs = model.numberOfWrongs + 1;
-		return _Utils_Tuple2(
-			_Utils_update(
-				model,
-				{isWrong: true, numberOfWrongs: newNumberOfWrongs, resultMessage: 'Wrong, try again.'}),
-			resetCmd);
-	}
-};
-var $author$project$Games$ModeExercise$pickRandomMode = F2(
-	function (maybeModes, randomIndex) {
-		if (maybeModes.$ === 'Just') {
-			var modes = maybeModes.a;
-			var maybeRandomModeObject = function () {
-				var _v1 = A2(
-					$elm$core$Array$get,
-					randomIndex,
-					$elm$core$Array$fromList(modes));
-				if (_v1.$ === 'Just') {
-					var randomModeObject = _v1.a;
-					return randomModeObject;
-				} else {
-					return {formula: _List_Nil, mode: 'No mode found at given index'};
-				}
-			}();
-			return maybeRandomModeObject;
-		} else {
-			return {formula: _List_Nil, mode: 'No mode found'};
-		}
-	});
-var $author$project$Games$ModeExercise$PickRandomMode = function (a) {
-	return {$: 'PickRandomMode', a: a};
+var $author$project$Games$ChordExercise$RandomChordPicked = function (a) {
+	return {$: 'RandomChordPicked', a: a};
 };
 var $elm$random$Random$Generate = function (a) {
 	return {$: 'Generate', a: a};
@@ -11827,6 +11693,223 @@ var $elm$random$Random$int = F2(
 				}
 			});
 	});
+var $author$project$Games$ChordExercise$randomizeChord = A2(
+	$elm$random$Random$generate,
+	$author$project$Games$ChordExercise$RandomChordPicked,
+	A2($elm$random$Random$int, 0, 3));
+var $author$project$Games$ChordExercise$checkIfChordIsCorrect = function (model) {
+	var _v0 = _Utils_Tuple2(model.maybeChosenChord, model.randomizedChord);
+	if ((_v0.a.$ === 'Just') && (_v0.b.$ === 'Just')) {
+		var chosenChord = _v0.a.a;
+		var randomizedChord = _v0.b.a;
+		if (_Utils_eq(chosenChord, randomizedChord)) {
+			var _v1 = A2($elm$core$Debug$log, 'Win!', 'Win');
+			return _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{
+						result: $elm$core$Maybe$Just($author$project$Games$ChordExercise$Win)
+					}),
+				$author$project$Games$ChordExercise$randomizeChord);
+		} else {
+			return _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{
+						result: $elm$core$Maybe$Just($author$project$Games$ChordExercise$Lose)
+					}),
+				$elm$core$Platform$Cmd$none);
+		}
+	} else {
+		return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+	}
+};
+var $author$project$Games$ChordExercise$pickRandomChord = F2(
+	function (maybeChords, randomIndex) {
+		if (maybeChords.$ === 'Just') {
+			var chords = maybeChords.a;
+			var maybeRandomChordObject = function () {
+				var _v1 = A2(
+					$elm$core$Array$get,
+					randomIndex,
+					$elm$core$Array$fromList(chords));
+				if (_v1.$ === 'Just') {
+					var randomChordObject = _v1.a;
+					return randomChordObject;
+				} else {
+					return {formula: _List_Nil, name: 'No chord found at given index'};
+				}
+			}();
+			return maybeRandomChordObject;
+		} else {
+			return {formula: _List_Nil, name: 'No chords found'};
+		}
+	});
+var $author$project$Games$ChordExercise$update = F2(
+	function (msg, model) {
+		switch (msg.$) {
+			case 'KeyAndScaleChosen':
+				var key = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							chosenKeyAndScale: $elm$core$Maybe$Just(key)
+						}),
+					$author$project$Games$ChordExercise$randomizeChord);
+			case 'GotTheoryDb':
+				var db = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							maybeChords: $elm$core$Maybe$Just(db.chords),
+							maybeMajorScalesAndKeys: $elm$core$Maybe$Just(db.majorScalesAndKeys)
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'RandomChordPicked':
+				var randomIndex = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							randomizedChord: $elm$core$Maybe$Just(
+								A2($author$project$Games$ChordExercise$pickRandomChord, model.maybeChords, randomIndex))
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'ChordChosen':
+				var chord = msg.a;
+				var modelWithChordChosen = _Utils_update(
+					model,
+					{
+						maybeChosenChord: $elm$core$Maybe$Just(chord)
+					});
+				var modelWithCheckedValues = $author$project$Games$ChordExercise$checkIfChordIsCorrect(modelWithChordChosen);
+				return modelWithCheckedValues;
+			default:
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{maybeChords: $elm$core$Maybe$Nothing, maybeChosenChord: $elm$core$Maybe$Nothing}),
+					$elm$core$Platform$Cmd$none);
+		}
+	});
+var $author$project$Games$ModeExercise$Lose = {$: 'Lose'};
+var $author$project$Games$ModeExercise$Submitted = function (a) {
+	return {$: 'Submitted', a: a};
+};
+var $author$project$Games$ModeExercise$Win = {$: 'Win'};
+var $elm$core$String$replace = F3(
+	function (before, after, string) {
+		return A2(
+			$elm$core$String$join,
+			after,
+			A2($elm$core$String$split, before, string));
+	});
+var $author$project$Games$ModeExercise$constructMode = F2(
+	function (mode, key) {
+		return A2(
+			$elm$core$List$map,
+			A2($elm$core$String$replace, 'b#', ''),
+			A2(
+				$elm$core$List$map,
+				A2($elm$core$String$replace, '#b', ''),
+				A3($elm$core$List$map2, $elm$core$Basics$append, key, mode)));
+	});
+var $author$project$Games$ModeExercise$notesToListString = function (key) {
+	return A2($elm$core$List$map, $elm$core$Tuple$second, key.notes);
+};
+var $author$project$Games$ModeExercise$isCorrectHelper = function (model) {
+	var _v0 = model.chosenKey;
+	if (_v0.$ === 'Just') {
+		var chosenKey = _v0.a;
+		return _Utils_eq(
+			$elm$core$List$reverse(model.userBuiltMode),
+			A2(
+				$author$project$Games$ModeExercise$constructMode,
+				model.randomizedMode.formula,
+				$author$project$Games$ModeExercise$notesToListString(chosenKey)));
+	} else {
+		return false;
+	}
+};
+var $elm$core$Process$sleep = _Process_sleep;
+var $author$project$Games$ModeExercise$checkIfModeBuiltCorrect = function (model) {
+	return $author$project$Games$ModeExercise$isCorrectHelper(model) ? _Utils_Tuple2(
+		_Utils_update(
+			model,
+			{gameOver: true}),
+		A2(
+			$elm$core$Task$perform,
+			function (_v0) {
+				return $author$project$Games$ModeExercise$Submitted($author$project$Games$ModeExercise$Win);
+			},
+			$elm$core$Process$sleep(100))) : _Utils_Tuple2(
+		_Utils_update(
+			model,
+			{gameOver: true}),
+		A2(
+			$elm$core$Task$perform,
+			function (_v1) {
+				return $author$project$Games$ModeExercise$Submitted($author$project$Games$ModeExercise$Lose);
+			},
+			$elm$core$Process$sleep(100)));
+};
+var $author$project$Games$ModeExercise$RandomizeMode = {$: 'RandomizeMode'};
+var $author$project$Games$ModeExercise$ResetWrong = {$: 'ResetWrong'};
+var $author$project$Games$ModeExercise$checkIfModeGuessCorrect = function (model) {
+	if (_Utils_eq(
+		model.modeGuessed,
+		$elm$core$Maybe$Just(model.randomizedMode.mode))) {
+		return _Utils_Tuple2(
+			_Utils_update(
+				model,
+				{isCorrect: true, isWrong: false, resultMessage: 'Correct!', score: model.score + 1}),
+			A2(
+				$elm$core$Task$perform,
+				function (_v0) {
+					return $author$project$Games$ModeExercise$RandomizeMode;
+				},
+				$elm$core$Process$sleep(500)));
+	} else {
+		var resetCmd = A2(
+			$elm$core$Task$perform,
+			function (_v1) {
+				return $author$project$Games$ModeExercise$ResetWrong;
+			},
+			$elm$core$Process$sleep(500));
+		var newNumberOfWrongs = model.numberOfWrongs + 1;
+		return _Utils_Tuple2(
+			_Utils_update(
+				model,
+				{isWrong: true, numberOfWrongs: newNumberOfWrongs, resultMessage: 'Wrong, try again.'}),
+			resetCmd);
+	}
+};
+var $author$project$Games$ModeExercise$pickRandomMode = F2(
+	function (maybeModes, randomIndex) {
+		if (maybeModes.$ === 'Just') {
+			var modes = maybeModes.a;
+			var maybeRandomModeObject = function () {
+				var _v1 = A2(
+					$elm$core$Array$get,
+					randomIndex,
+					$elm$core$Array$fromList(modes));
+				if (_v1.$ === 'Just') {
+					var randomModeObject = _v1.a;
+					return randomModeObject;
+				} else {
+					return {formula: _List_Nil, mode: 'No mode found at given index'};
+				}
+			}();
+			return maybeRandomModeObject;
+		} else {
+			return {formula: _List_Nil, mode: 'No mode found'};
+		}
+	});
+var $author$project$Games$ModeExercise$PickRandomMode = function (a) {
+	return {$: 'PickRandomMode', a: a};
+};
 var $author$project$Games$ModeExercise$randomizeMode = A2(
 	$elm$random$Random$generate,
 	$author$project$Games$ModeExercise$PickRandomMode,
@@ -12472,12 +12555,172 @@ var $author$project$Main$viewHeader = function (currentPath) {
 					]))
 			]));
 };
+var $elm$core$Debug$toString = _Debug_toString;
+var $author$project$Games$ChordExercise$ChordChosen = function (a) {
+	return {$: 'ChordChosen', a: a};
+};
+var $author$project$Games$ChordExercise$viewChord = F2(
+	function (chosenKeyAndScale, chord) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('custom-button'),
+					$elm$html$Html$Events$onClick(
+					$author$project$Games$ChordExercise$ChordChosen(chord))
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(
+					_Utils_ap(chosenKeyAndScale.key, chord.name))
+				]));
+	});
+var $author$project$Games$ChordExercise$viewChords = F2(
+	function (model, chosenKeyAndScale) {
+		var _v0 = model.maybeChords;
+		if (_v0.$ === 'Just') {
+			var chords = _v0.a;
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('chords-container')
+					]),
+				A2(
+					$elm$core$List$map,
+					$author$project$Games$ChordExercise$viewChord(chosenKeyAndScale),
+					chords));
+		} else {
+			return A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text('No chords found')
+					]));
+		}
+	});
+var $author$project$Games$ChordExercise$listTuplesToListString = function (listOfTuples) {
+	return A2($elm$core$List$map, $elm$core$Tuple$second, listOfTuples);
+};
+var $elm$core$Basics$modBy = _Basics_modBy;
+var $elm_community$list_extra$List$Extra$indexedFoldr = F3(
+	function (func, acc, list) {
+		var step = F2(
+			function (x, _v0) {
+				var i = _v0.a;
+				var thisAcc = _v0.b;
+				return _Utils_Tuple2(
+					i - 1,
+					A3(func, i, x, thisAcc));
+			});
+		return A3(
+			$elm$core$List$foldr,
+			step,
+			_Utils_Tuple2(
+				$elm$core$List$length(list) - 1,
+				acc),
+			list).b;
+	});
+var $elm_community$list_extra$List$Extra$removeIfIndex = function (predicate) {
+	return A2(
+		$elm_community$list_extra$List$Extra$indexedFoldr,
+		F3(
+			function (index, item, acc) {
+				return predicate(index) ? acc : A2($elm$core$List$cons, item, acc);
+			}),
+		_List_Nil);
+};
+var $author$project$Games$ChordExercise$chordConstructor = F2(
+	function (chord, maybeMajorScaleAndKey) {
+		if (maybeMajorScaleAndKey.$ === 'Just') {
+			var majorScaleAndKey = maybeMajorScaleAndKey.a;
+			return A2(
+				$elm$core$String$join,
+				' ',
+				A2(
+					$elm$core$List$map,
+					A2($elm$core$String$replace, 'b#', ''),
+					A2(
+						$elm$core$List$map,
+						A2($elm$core$String$replace, '#b', ''),
+						A3(
+							$elm$core$List$map2,
+							$elm$core$Basics$append,
+							A2(
+								$elm_community$list_extra$List$Extra$removeIfIndex,
+								function (index) {
+									return !(!A2($elm$core$Basics$modBy, 2, index));
+								},
+								$author$project$Games$ChordExercise$listTuplesToListString(majorScaleAndKey.notes)),
+							chord.formula))));
+		} else {
+			return 'Please choose a key';
+		}
+	});
+var $author$project$Games$ChordExercise$viewRandomizedChord = function (model) {
+	var _v0 = model.randomizedChord;
+	if (_v0.$ === 'Just') {
+		var randomizedChord = _v0.a;
+		return A2(
+			$elm$html$Html$p,
+			_List_Nil,
+			_List_fromArray(
+				[
+					$elm$html$Html$text(
+					'Which chord is this? ' + A2($author$project$Games$ChordExercise$chordConstructor, randomizedChord, model.chosenKeyAndScale))
+				]));
+	} else {
+		return A2(
+			$elm$html$Html$p,
+			_List_Nil,
+			_List_fromArray(
+				[
+					$elm$html$Html$text('No chord found')
+				]));
+	}
+};
+var $author$project$Games$ChordExercise$viewGameStarted = function (model) {
+	var _v0 = model.chosenKeyAndScale;
+	if (_v0.$ === 'Just') {
+		var chosenKeyAndScale = _v0.a;
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					$author$project$Games$ChordExercise$viewRandomizedChord(model),
+					A2($author$project$Games$ChordExercise$viewChords, model, chosenKeyAndScale),
+					A2(
+					$elm$html$Html$p,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text(
+							'randomizedChord: ' + $elm$core$Debug$toString(model.randomizedChord))
+						]))
+				]));
+	} else {
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					$elm$html$Html$text('Please choose a key')
+				]));
+	}
+};
+var $author$project$Games$ChordExercise$KeyAndScaleChosen = function (a) {
+	return {$: 'KeyAndScaleChosen', a: a};
+};
 var $author$project$Games$ChordExercise$viewKeys = function (majorScaleAndKey) {
 	return A2(
 		$elm$html$Html$button,
 		_List_fromArray(
 			[
-				$elm$html$Html$Attributes$class('custom-button')
+				$elm$html$Html$Attributes$class('custom-button'),
+				$elm$html$Html$Events$onClick(
+				$author$project$Games$ChordExercise$KeyAndScaleChosen(majorScaleAndKey))
 			]),
 		_List_fromArray(
 			[
@@ -12500,7 +12743,8 @@ var $author$project$Games$ChordExercise$view = function (model) {
 						[
 							$elm$html$Html$Attributes$class('key-buttons-container')
 						]),
-					A2($elm$core$List$map, $author$project$Games$ChordExercise$viewKeys, majorScalesAndKeys))
+					A2($elm$core$List$map, $author$project$Games$ChordExercise$viewKeys, majorScalesAndKeys)),
+					$author$project$Games$ChordExercise$viewGameStarted(model)
 				]));
 	} else {
 		return A2(
@@ -12508,7 +12752,7 @@ var $author$project$Games$ChordExercise$view = function (model) {
 			_List_Nil,
 			_List_fromArray(
 				[
-					$elm$html$Html$text('Please choose a key')
+					$elm$html$Html$text('Something went wrong')
 				]));
 	}
 };
@@ -13003,7 +13247,6 @@ var $author$project$Games$ModeExercise$viewModeBuilderGame = function (model) {
 				]));
 	}
 };
-var $elm$core$Debug$toString = _Debug_toString;
 var $author$project$Games$ModeExercise$viewConstructMode = function (constructedNote) {
 	return A2(
 		$elm$html$Html$div,
@@ -13766,4 +14009,4 @@ var $author$project$Main$main = $elm$browser$Browser$application(
 		update: $author$project$Main$update,
 		view: $author$project$Main$view
 	});
-_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"ChooseKey":["String.String"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"Reset":["Basics.Bool"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"KeyAndScaleChosen":["Games.TheoryApi.MajorScaleAndKey"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"RandomChordPicked":["Basics.Int"],"ChordChosen":["Games.TheoryApi.Chord"],"Reset":[]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"Reset":["Basics.Bool"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));

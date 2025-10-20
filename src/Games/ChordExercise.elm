@@ -1,22 +1,38 @@
 module Games.ChordExercise exposing (..)
 
+import Array
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import List.Extra as ListExtra
+import Random
 
 
 type alias Model =
     { maybeChords : Maybe (List TheoryApi.Chord)
     , maybeMajorScalesAndKeys : Maybe (List TheoryApi.MajorScaleAndKey)
-    , chosenKey : Maybe String
+    , chosenKeyAndScale : Maybe TheoryApi.MajorScaleAndKey
+    , maybeChosenChord : Maybe TheoryApi.Chord
+    , randomizedChord : Maybe TheoryApi.Chord
+    , constructedRandomizedChord : List String
+    , constructedChosenChord : List String
+    , result : Maybe SubmitResult
+    , gameOver : Bool
     }
 
 
 type Msg
-    = ChooseKey String
+    = KeyAndScaleChosen TheoryApi.MajorScaleAndKey
     | GotTheoryDb TheoryApi.TheoryDb
+    | RandomChordPicked Int
+    | ChordChosen TheoryApi.Chord
+    | Reset
+
+
+type SubmitResult
+    = Win
+    | Lose
 
 
 type alias Flags =
@@ -27,7 +43,13 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { maybeChords = Nothing
       , maybeMajorScalesAndKeys = Nothing
-      , chosenKey = Nothing
+      , chosenKeyAndScale = Nothing
+      , maybeChosenChord = Nothing
+      , randomizedChord = Nothing
+      , constructedRandomizedChord = []
+      , constructedChosenChord = []
+      , result = Nothing
+      , gameOver = False
       }
     , Cmd.none
     )
@@ -36,16 +58,37 @@ init flags =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ChooseKey key ->
-            ( { model | chosenKey = Just key }, Cmd.none )
+        KeyAndScaleChosen key ->
+            ( { model | chosenKeyAndScale = Just key }, randomizeChord )
 
         GotTheoryDb db ->
-            let
-                _ =
-                    Debug.log "" db
-            in
-            ( { model | maybeMajorScalesAndKeys = Just db.majorScalesAndKeys }, Cmd.none )
+            ( { model
+                | maybeMajorScalesAndKeys = Just db.majorScalesAndKeys
+                , maybeChords = Just db.chords
+              }
+            , Cmd.none
+            )
 
+        RandomChordPicked randomIndex ->
+            ( { model | randomizedChord = Just (pickRandomChord model.maybeChords randomIndex) }, Cmd.none )
+
+        ChordChosen chord ->
+            let
+                modelWithChordChosen =
+                    { model | maybeChosenChord = Just chord }
+
+                modelWithCheckedValues =
+                    checkIfChordIsCorrect modelWithChordChosen
+            in
+            modelWithCheckedValues
+
+        Reset ->
+            ( { model
+                | maybeChords = Nothing
+                , maybeChosenChord = Nothing
+              }
+            , Cmd.none
+            )
 
 
 view : Model -> Html Msg
@@ -56,17 +99,159 @@ view model =
                 [ Html.text "Chord exercise"
                 , Html.div [ HA.class "key-buttons-container" ]
                     (List.map viewKeys majorScalesAndKeys)
+                , viewGameStarted model
                 ]
 
         Nothing ->
-            Html.div [] [ Html.text "Please choose a key"]
+            Html.div [] [ Html.text "Something went wrong" ]
+
+
+viewGameStarted : Model -> Html Msg
+viewGameStarted model =
+    case model.chosenKeyAndScale of
+        Just chosenKeyAndScale ->
+            Html.div []
+                [ viewRandomizedChord model
+                , viewChords model chosenKeyAndScale
+                , Html.p [] [ Html.text ("randomizedChord: " ++ Debug.toString model.randomizedChord) ]
+                ]
+
+        Nothing ->
+            Html.div [] [ Html.text "Please choose a key" ]
 
 
 viewKeys : TheoryApi.MajorScaleAndKey -> Html Msg
 viewKeys majorScaleAndKey =
-    Html.button [ HA.class "custom-button" ] [ Html.text majorScaleAndKey.key ]
+    Html.button
+        [ HA.class "custom-button"
+        , HE.onClick (KeyAndScaleChosen majorScaleAndKey)
+        ]
+        [ Html.text majorScaleAndKey.key ]
 
 
-chordConstructor : List String -> List String
-chordConstructor majorScaleAndKey =
-    ListExtra.removeIfIndex (\index -> modBy 2 index == 0) majorScaleAndKey
+viewChords : Model -> TheoryApi.MajorScaleAndKey -> Html Msg
+viewChords model chosenKeyAndScale =
+            case model.maybeChords of
+                Just chords ->
+                    Html.div [ HA.class "chords-container" ]
+                        (List.map (viewChord chosenKeyAndScale) chords)
+
+                Nothing ->
+                    Html.div [] [ Html.text "No chords found" ]
+
+
+viewChord : TheoryApi.MajorScaleAndKey -> TheoryApi.Chord -> Html Msg
+viewChord chosenKeyAndScale chord =
+    Html.div [ HA.class "custom-button", HE.onClick (ChordChosen chord) ]
+        [ Html.text (chosenKeyAndScale.key ++ chord.name)
+        ]
+
+
+viewRandomizedChord : Model -> Html Msg
+viewRandomizedChord model =
+    case model.randomizedChord of
+        Just randomizedChord ->
+            Html.p [] [ Html.text ("Which chord is this? " ++ chordConstructor randomizedChord model.chosenKeyAndScale) ]
+
+        Nothing ->
+            Html.p [] [ Html.text "No chord found" ]
+
+
+listTuplesToListString : List ( Int, String ) -> List String
+listTuplesToListString listOfTuples =
+    List.map Tuple.second listOfTuples
+
+
+chordConstructor : TheoryApi.Chord -> Maybe TheoryApi.MajorScaleAndKey -> String
+chordConstructor chord maybeMajorScaleAndKey =
+    case maybeMajorScaleAndKey of
+        Just majorScaleAndKey ->
+            List.map2 (++) (ListExtra.removeIfIndex (\index -> modBy 2 index /= 0) (listTuplesToListString majorScaleAndKey.notes)) chord.formula
+                |> List.map (String.replace "#b" "")
+                |> List.map (String.replace "b#" "")
+                |> String.join " "
+
+        Nothing ->
+            "Please choose a key"
+
+
+pickRandomChord : Maybe (List TheoryApi.Chord) -> Int -> TheoryApi.Chord
+pickRandomChord maybeChords randomIndex =
+    case maybeChords of
+        Just chords ->
+            let
+                maybeRandomChordObject =
+                    case Array.get randomIndex (Array.fromList chords) of
+                        Just randomChordObject ->
+                            randomChordObject
+
+                        Nothing ->
+                            { name = "No chord found at given index", formula = [] }
+            in
+            maybeRandomChordObject
+
+        Nothing ->
+            { name = "No chords found", formula = [] }
+
+
+randomizeChord : Cmd Msg
+randomizeChord =
+    Random.generate RandomChordPicked (Random.int 0 3)
+
+
+viewGameOverOrWinMessage : Model -> Html Msg
+viewGameOverOrWinMessage model =
+    case model.result of
+        Just Win ->
+            Html.div
+                [ HA.class "game-over-message-container"
+                , if not model.gameOver then
+                    HA.style "display" "none"
+
+                  else
+                    HA.style "display" ""
+                ]
+                [ Html.p [] [ Html.text "You win!" ]
+                , Html.p []
+                    [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Play again" ] ]
+                ]
+
+        Just Lose ->
+            Html.div
+                [ HA.class "game-over-message-container"
+                , if not model.gameOver then
+                    HA.style "display" "none"
+
+                  else
+                    HA.style "display" ""
+                ]
+                [ Html.p [] [ Html.text "Game over" ]
+                , Html.p []
+                    [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Try again" ] ]
+                ]
+
+        Nothing ->
+            Html.div [] []
+
+
+checkIfChordIsCorrect : Model -> ( Model, Cmd Msg )
+checkIfChordIsCorrect model =
+    case ( model.maybeChosenChord, model.randomizedChord ) of
+        ( Just chosenChord, Just randomizedChord ) ->
+            if chosenChord == randomizedChord then
+                let
+                    _ =
+                        Debug.log "Win!" "Win"
+                in
+                ( { model | result = Just Win }, randomizeChord )
+
+            else
+                ( { model | result = Just Lose }, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+
+-- Same chord shouldnt be viewed after. since randomize function only is between 0-3
+-- same number gets randomized

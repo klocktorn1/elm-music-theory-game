@@ -126,6 +126,14 @@ a {
   }
 }
 
+/* ========== Chord styling ========== */
+
+.chords-container {
+  display: flex;
+  gap: 20px;
+
+}
+
 /* ========== Buttons ========== */
 button {
   all: unset;
