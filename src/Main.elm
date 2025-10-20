@@ -5,6 +5,7 @@ import Browser.Navigation as Nav
 import Games.ChordExercise as ChordExercise
 import Games.ModeExercise as ModeExercise
 import Games.NoteExercise as NoteExercise
+import Games.FretboardGame as FretboardGame
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
@@ -23,6 +24,7 @@ type alias Model =
     , noteExerciseModel : NoteExercise.Model
     , modeExerciseModel : ModeExercise.Model
     , chordExerciseModel : ChordExercise.Model
+    , fretboardGameModel : FretboardGame.Model
     }
 
 
@@ -32,6 +34,7 @@ type Msg
     | NoteExerciseMsg NoteExercise.Msg
     | ModeExerciseMsg ModeExercise.Msg
     | ChordExerciseMsg ChordExercise.Msg
+    | FretboardGameMsg FretboardGame.Msg
     | GotTheoryDb (Result Http.Error TheoryApi.TheoryDb)
 
 
@@ -71,7 +74,10 @@ init flags url key =
             ModeExercise.init flags
 
         ( chordExerciseModel, chordExerciseCmd ) =
-            ChordExercise.init flags
+            ChordExercise.init flags        
+            
+        ( fretboardGameModel, fretboardGameCmd ) =
+            FretboardGame.init ()
     in
     ( { url = url
       , key = key
@@ -79,6 +85,7 @@ init flags url key =
       , noteExerciseModel = noteExerciseModel
       , modeExerciseModel = modeExerciseModel
       , chordExerciseModel = chordExerciseModel
+      , fretboardGameModel = fretboardGameModel
       , theoryDb = RemoteData.Loading
       }
     , Cmd.batch
@@ -91,6 +98,9 @@ init flags url key =
         , Cmd.map
             ChordExerciseMsg
             chordExerciseCmd
+        , Cmd.map
+            FretboardGameMsg
+            fretboardGameCmd
         , TheoryApi.fetchTheoryDb GotTheoryDb
         ]
     )
@@ -149,6 +159,15 @@ update msg model =
             in
             ( { model | chordExerciseModel = updatedGameModel }
             , Cmd.map ChordExerciseMsg cmd
+            )
+
+        FretboardGameMsg subMsg ->
+            let
+                ( updatedGameModel, cmd ) =
+                    FretboardGame.update subMsg model.fretboardGameModel 
+            in
+            ( { model | fretboardGameModel = updatedGameModel }
+            , Cmd.map FretboardGameMsg cmd
             )
 
         GotTheoryDb (Ok db) ->
@@ -216,6 +235,7 @@ viewHeader currentPath =
                 , Html.li [] [ viewLink "Note exercise" "/game/note-exercise" currentPath ]
                 , Html.li [] [ viewLink "Mode exercise" "/game/mode-exercise" currentPath ]
                 , Html.li [] [ viewLink "Chord Exercise" "/game/chord-exercise" currentPath ]
+                , Html.li [] [ viewLink "Fretboard Game" "/game/fretboard-game" currentPath ]
                 ]
             ]
         ]
@@ -237,6 +257,9 @@ viewRoute model =
 
                 "chord-exercise" ->
                     Html.map ChordExerciseMsg (ChordExercise.view model.chordExerciseModel)
+
+                "fretboard-game" ->
+                    Html.map FretboardGameMsg (FretboardGame.view model.fretboardGameModel)
 
                 _ ->
                     Html.text ("Unknown game: " ++ gameName)

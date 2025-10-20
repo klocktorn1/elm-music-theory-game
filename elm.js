@@ -10805,6 +10805,9 @@ var $elm$browser$Browser$application = _Browser_application;
 var $author$project$Main$ChordExerciseMsg = function (a) {
 	return {$: 'ChordExerciseMsg', a: a};
 };
+var $author$project$Main$FretboardGameMsg = function (a) {
+	return {$: 'FretboardGameMsg', a: a};
+};
 var $author$project$Main$GotTheoryDb = function (a) {
 	return {$: 'GotTheoryDb', a: a};
 };
@@ -11143,6 +11146,17 @@ var $author$project$Games$ChordExercise$init = function (flags) {
 		{chosenKeyAndScale: $elm$core$Maybe$Nothing, constructedChosenChord: _List_Nil, constructedRandomizedChord: _List_Nil, gameOver: false, maybeChords: $elm$core$Maybe$Nothing, maybeChosenChord: $elm$core$Maybe$Nothing, maybeMajorScalesAndKeys: $elm$core$Maybe$Nothing, randomizedChord: $elm$core$Maybe$Nothing, result: $elm$core$Maybe$Nothing},
 		$elm$core$Platform$Cmd$none);
 };
+var $author$project$Games$FretboardGame$init = function (_v0) {
+	return _Utils_Tuple2(
+		{
+			display: _Utils_Tuple2(24, 14),
+			fretCount: 12,
+			player: {fret: 0, string: 1},
+			stringCount: 6,
+			targetNote: 'C'
+		},
+		$elm$core$Platform$Cmd$none);
+};
 var $author$project$Games$ModeExercise$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
@@ -11469,17 +11483,21 @@ var $author$project$Main$init = F3(
 		var _v1 = $author$project$Games$ModeExercise$init(flags);
 		var modeExerciseModel = _v1.a;
 		var modeExerciseCmd = _v1.b;
-		var _v2 = $author$project$Games$ChordExercise$init(flags);
-		var chordExerciseModel = _v2.a;
-		var chordExerciseCmd = _v2.b;
+		var _v2 = $author$project$Games$FretboardGame$init(_Utils_Tuple0);
+		var fretboardGameModel = _v2.a;
+		var fretboardGameCmd = _v2.b;
+		var _v3 = $author$project$Games$ChordExercise$init(flags);
+		var chordExerciseModel = _v3.a;
+		var chordExerciseCmd = _v3.b;
 		return _Utils_Tuple2(
-			{chordExerciseModel: chordExerciseModel, key: key, modeExerciseModel: modeExerciseModel, noteExerciseModel: noteExerciseModel, route: route, theoryDb: $krisajenkins$remotedata$RemoteData$Loading, url: url},
+			{chordExerciseModel: chordExerciseModel, fretboardGameModel: fretboardGameModel, key: key, modeExerciseModel: modeExerciseModel, noteExerciseModel: noteExerciseModel, route: route, theoryDb: $krisajenkins$remotedata$RemoteData$Loading, url: url},
 			$elm$core$Platform$Cmd$batch(
 				_List_fromArray(
 					[
 						A2($elm$core$Platform$Cmd$map, $author$project$Main$NoteExerciseMsg, noteExerciseCmd),
 						A2($elm$core$Platform$Cmd$map, $author$project$Main$ModeExerciseMsg, modeExerciseCmd),
 						A2($elm$core$Platform$Cmd$map, $author$project$Main$ChordExerciseMsg, chordExerciseCmd),
+						A2($elm$core$Platform$Cmd$map, $author$project$Main$FretboardGameMsg, fretboardGameCmd),
 						$author$project$Games$TheoryApi$fetchTheoryDb($author$project$Main$GotTheoryDb)
 					])));
 	});
@@ -11792,6 +11810,78 @@ var $author$project$Games$ChordExercise$update = F2(
 						model,
 						{maybeChords: $elm$core$Maybe$Nothing, maybeChosenChord: $elm$core$Maybe$Nothing}),
 					$elm$core$Platform$Cmd$none);
+		}
+	});
+var $author$project$Games$FretboardGame$lerp = F3(
+	function (a, b, t) {
+		return a + ((b - a) * t);
+	});
+var $author$project$Games$FretboardGame$clamp = F3(
+	function (lo, hi, val) {
+		return (_Utils_cmp(val, lo) < 0) ? lo : ((_Utils_cmp(val, hi) > 0) ? hi : val);
+	});
+var $author$project$Games$FretboardGame$move = F3(
+	function (key, pos, model) {
+		switch (key) {
+			case 'ArrowLeft':
+				return _Utils_update(
+					pos,
+					{
+						fret: A3($author$project$Games$FretboardGame$clamp, 0, model.fretCount - 1, pos.fret - 1)
+					});
+			case 'ArrowRight':
+				return _Utils_update(
+					pos,
+					{
+						fret: A3($author$project$Games$FretboardGame$clamp, 0, model.fretCount - 1, pos.fret + 1)
+					});
+			case 'ArrowUp':
+				return _Utils_update(
+					pos,
+					{
+						string: A3($author$project$Games$FretboardGame$clamp, 1, model.stringCount, pos.string - 1)
+					});
+			case 'ArrowDown':
+				return _Utils_update(
+					pos,
+					{
+						string: A3($author$project$Games$FretboardGame$clamp, 1, model.stringCount, pos.string + 1)
+					});
+			default:
+				return pos;
+		}
+	});
+var $author$project$Games$FretboardGame$posToXY = function (pos) {
+	var stringSpacing = 28;
+	var fretWidth = 48;
+	return _Utils_Tuple2((pos.fret * fretWidth) + (fretWidth / 2), ((pos.string - 1) * stringSpacing) + (stringSpacing / 2));
+};
+var $author$project$Games$FretboardGame$update = F2(
+	function (msg, model) {
+		if (msg.$ === 'KeyDown') {
+			var key = msg.a;
+			var newPos = A3($author$project$Games$FretboardGame$move, key, model.player, model);
+			return _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{player: newPos}),
+				$elm$core$Platform$Cmd$none);
+		} else {
+			var target = $author$project$Games$FretboardGame$posToXY(model.player);
+			var _v1 = model.display;
+			var x = _v1.a;
+			var y = _v1.b;
+			var _v2 = target;
+			var tx = _v2.a;
+			var ty = _v2.b;
+			var newDisplay = _Utils_Tuple2(
+				A3($author$project$Games$FretboardGame$lerp, x, tx, 0.2),
+				A3($author$project$Games$FretboardGame$lerp, y, ty, 0.2));
+			return _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{display: newDisplay}),
+				$elm$core$Platform$Cmd$none);
 		}
 	});
 var $author$project$Games$ModeExercise$Lose = {$: 'Lose'};
@@ -12390,27 +12480,37 @@ var $author$project$Main$update = F2(
 						model,
 						{chordExerciseModel: updatedGameModel}),
 					A2($elm$core$Platform$Cmd$map, $author$project$Main$ChordExerciseMsg, cmd));
+			case 'FretboardGameMsg':
+				var subMsg = msg.a;
+				var _v5 = A2($author$project$Games$FretboardGame$update, subMsg, model.fretboardGameModel);
+				var updatedGameModel = _v5.a;
+				var cmd = _v5.b;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{fretboardGameModel: updatedGameModel}),
+					A2($elm$core$Platform$Cmd$map, $author$project$Main$FretboardGameMsg, cmd));
 			default:
 				if (msg.a.$ === 'Ok') {
 					var db = msg.a.a;
-					var _v5 = A2(
+					var _v6 = A2(
 						$author$project$Games$NoteExercise$update,
 						$author$project$Games$NoteExercise$GotTheoryDb(db),
 						model.noteExerciseModel);
-					var updatedNoteModel = _v5.a;
-					var noteCmd = _v5.b;
-					var _v6 = A2(
+					var updatedNoteModel = _v6.a;
+					var noteCmd = _v6.b;
+					var _v7 = A2(
 						$author$project$Games$ModeExercise$update,
 						$author$project$Games$ModeExercise$GotTheoryDb(db),
 						model.modeExerciseModel);
-					var updatedModeModel = _v6.a;
-					var modeCmd = _v6.b;
-					var _v7 = A2(
+					var updatedModeModel = _v7.a;
+					var modeCmd = _v7.b;
+					var _v8 = A2(
 						$author$project$Games$ChordExercise$update,
 						$author$project$Games$ChordExercise$GotTheoryDb(db),
 						model.chordExerciseModel);
-					var updatedChordModel = _v7.a;
-					var chordCmd = _v7.b;
+					var updatedChordModel = _v8.a;
+					var chordCmd = _v8.b;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
@@ -12550,6 +12650,13 @@ var $author$project$Main$viewHeader = function (currentPath) {
 								_List_fromArray(
 									[
 										A3($author$project$Main$viewLink, 'Chord Exercise', '/game/chord-exercise', currentPath)
+									])),
+								A2(
+								$elm$html$Html$li,
+								_List_Nil,
+								_List_fromArray(
+									[
+										A3($author$project$Main$viewLink, 'Fretboard Game', '/game/fretboard-game', currentPath)
 									]))
 							]))
 					]))
@@ -12755,6 +12862,122 @@ var $author$project$Games$ChordExercise$view = function (model) {
 					$elm$html$Html$text('Something went wrong')
 				]));
 	}
+};
+var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
+var $elm$svg$Svg$line = $elm$svg$Svg$trustedNode('line');
+var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
+var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
+var $elm$svg$Svg$Attributes$x1 = _VirtualDom_attribute('x1');
+var $elm$svg$Svg$Attributes$x2 = _VirtualDom_attribute('x2');
+var $elm$svg$Svg$Attributes$y1 = _VirtualDom_attribute('y1');
+var $elm$svg$Svg$Attributes$y2 = _VirtualDom_attribute('y2');
+var $author$project$Games$FretboardGame$drawFretboard = function (model) {
+	var stringSpacing = 28;
+	var fretWidth = 48;
+	return $elm$core$List$concat(
+		_List_fromArray(
+			[
+				A2(
+				$elm$core$List$map,
+				function (i) {
+					return A2(
+						$elm$svg$Svg$line,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x1('0'),
+								$elm$svg$Svg$Attributes$x2(
+								$elm$core$String$fromFloat(model.fretCount * fretWidth)),
+								$elm$svg$Svg$Attributes$y1(
+								$elm$core$String$fromFloat(((i - 1) * stringSpacing) + (stringSpacing / 2))),
+								$elm$svg$Svg$Attributes$y2(
+								$elm$core$String$fromFloat(((i - 1) * stringSpacing) + (stringSpacing / 2))),
+								$elm$svg$Svg$Attributes$stroke('black'),
+								$elm$svg$Svg$Attributes$strokeWidth('1')
+							]),
+						_List_Nil);
+				},
+				A2($elm$core$List$range, 1, model.stringCount)),
+				A2(
+				$elm$core$List$map,
+				function (f) {
+					return A2(
+						$elm$svg$Svg$line,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x1(
+								$elm$core$String$fromFloat(f * fretWidth)),
+								$elm$svg$Svg$Attributes$x2(
+								$elm$core$String$fromFloat(f * fretWidth)),
+								$elm$svg$Svg$Attributes$y1('0'),
+								$elm$svg$Svg$Attributes$y2(
+								$elm$core$String$fromFloat(model.stringCount * stringSpacing)),
+								$elm$svg$Svg$Attributes$stroke('#ccc')
+							]),
+						_List_Nil);
+				},
+				A2($elm$core$List$range, 0, model.fretCount))
+			]));
+};
+var $elm$svg$Svg$circle = $elm$svg$Svg$trustedNode('circle');
+var $elm$svg$Svg$Attributes$fill = _VirtualDom_attribute('fill');
+var $elm$svg$Svg$g = $elm$svg$Svg$trustedNode('g');
+var $elm$svg$Svg$Attributes$r = _VirtualDom_attribute('r');
+var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
+var $author$project$Games$FretboardGame$drawPlayer = function (model) {
+	var _v0 = model.display;
+	var x = _v0.a;
+	var y = _v0.b;
+	return A2(
+		$elm$svg$Svg$g,
+		_List_fromArray(
+			[
+				$elm$svg$Svg$Attributes$transform(
+				'translate(' + ($elm$core$String$fromFloat(x) + (',' + ($elm$core$String$fromFloat(y) + ')'))))
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$svg$Svg$circle,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$r('10'),
+						$elm$svg$Svg$Attributes$fill('red')
+					]),
+				_List_Nil)
+			]));
+};
+var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
+var $elm$svg$Svg$Attributes$style = _VirtualDom_attribute('style');
+var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
+var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
+var $author$project$Games$FretboardGame$view = function (model) {
+	return A2(
+		$elm$html$Html$div,
+		_List_Nil,
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Find note: ' + model.targetNote)
+					])),
+				A2(
+				$elm$svg$Svg$svg,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$width('800'),
+						$elm$svg$Svg$Attributes$height('200'),
+						$elm$svg$Svg$Attributes$style('background:#f0f0f0')
+					]),
+				_Utils_ap(
+					$author$project$Games$FretboardGame$drawFretboard(model),
+					_List_fromArray(
+						[
+							$author$project$Games$FretboardGame$drawPlayer(model)
+						])))
+			]));
 };
 var $author$project$Games$ModeExercise$ChooseGame = function (a) {
 	return {$: 'ChooseGame', a: a};
@@ -13945,6 +14168,11 @@ var $author$project$Main$viewRoute = function (model) {
 						$elm$html$Html$map,
 						$author$project$Main$ChordExerciseMsg,
 						$author$project$Games$ChordExercise$view(model.chordExerciseModel));
+				case 'fretboard-game':
+					return A2(
+						$elm$html$Html$map,
+						$author$project$Main$FretboardGameMsg,
+						$author$project$Games$FretboardGame$view(model.fretboardGameModel));
 				default:
 					return $elm$html$Html$text('Unknown game: ' + gameName);
 			}
@@ -14009,4 +14237,4 @@ var $author$project$Main$main = $elm$browser$Browser$application(
 		update: $author$project$Main$update,
 		view: $author$project$Main$view
 	});
-_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"KeyAndScaleChosen":["Games.TheoryApi.MajorScaleAndKey"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"RandomChordPicked":["Basics.Int"],"ChordChosen":["Games.TheoryApi.Chord"],"Reset":[]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"Reset":["Basics.Bool"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"FretboardGameMsg":["Games.FretboardGame.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"KeyAndScaleChosen":["Games.TheoryApi.MajorScaleAndKey"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"RandomChordPicked":["Basics.Int"],"ChordChosen":["Games.TheoryApi.Chord"],"Reset":[]}},"Games.FretboardGame.Msg":{"args":[],"tags":{"KeyDown":["String.String"],"Tick":["Time.Posix"]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"Reset":["Basics.Bool"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));
