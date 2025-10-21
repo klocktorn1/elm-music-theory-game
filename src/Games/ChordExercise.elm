@@ -15,9 +15,11 @@ type alias Model =
     , chosenKeyAndScale : Maybe TheoryApi.MajorScaleAndKey
     , maybeChosenChord : Maybe TheoryApi.Chord
     , randomizedChord : Maybe TheoryApi.Chord
+    , lastRandomIndex : Maybe Int
     , constructedRandomizedChord : List String
     , constructedChosenChord : List String
-    , result : Maybe SubmitResult
+    , score : Int
+    , mistakes : Int
     , gameOver : Bool
     }
 
@@ -28,11 +30,6 @@ type Msg
     | RandomChordPicked Int
     | ChordChosen TheoryApi.Chord
     | Reset
-
-
-type SubmitResult
-    = Win
-    | Lose
 
 
 type alias Flags =
@@ -46,9 +43,11 @@ init flags =
       , chosenKeyAndScale = Nothing
       , maybeChosenChord = Nothing
       , randomizedChord = Nothing
+      , lastRandomIndex = Nothing
       , constructedRandomizedChord = []
       , constructedChosenChord = []
-      , result = Nothing
+      , score = 0
+      , mistakes = 0
       , gameOver = False
       }
     , Cmd.none
@@ -70,7 +69,24 @@ update msg model =
             )
 
         RandomChordPicked randomIndex ->
-            ( { model | randomizedChord = Just (pickRandomChord model.maybeChords randomIndex) }, Cmd.none )
+            case model.lastRandomIndex of
+                Just lastRandomIndex ->
+                    if lastRandomIndex == randomIndex then
+                        ( model, randomizeChord )
+
+                    else
+                        let
+                            newRandomizedChord =
+                                pickRandomChord model.maybeChords randomIndex
+                        in
+                        ( { model | randomizedChord = Just newRandomizedChord, lastRandomIndex = Just randomIndex }, Cmd.none )
+
+                Nothing ->
+                    let
+                        newRandomizedChord =
+                            pickRandomChord model.maybeChords randomIndex
+                    in
+                    ( { model | randomizedChord = Just newRandomizedChord, lastRandomIndex = Just randomIndex }, Cmd.none )
 
         ChordChosen chord ->
             let
@@ -86,6 +102,9 @@ update msg model =
             ( { model
                 | maybeChords = Nothing
                 , maybeChosenChord = Nothing
+                , gameOver = False
+                , mistakes = 0
+                , score = 0
               }
             , Cmd.none
             )
@@ -110,11 +129,16 @@ viewGameStarted : Model -> Html Msg
 viewGameStarted model =
     case model.chosenKeyAndScale of
         Just chosenKeyAndScale ->
-            Html.div []
-                [ viewRandomizedChord model
-                , viewChords model chosenKeyAndScale
-                , Html.p [] [ Html.text ("randomizedChord: " ++ Debug.toString model.randomizedChord) ]
-                ]
+            if not model.gameOver then
+                Html.div []
+                    [ viewRandomizedChord model
+                    , viewChords model chosenKeyAndScale
+                    , Html.p [] [ Html.text <| "Score:  " ++ String.fromInt model.score ]
+                    , Html.p [] [ Html.text <| "Mistakes:  " ++ String.fromInt model.mistakes ]
+                    ]
+
+            else
+                viewGameOverMessage model
 
         Nothing ->
             Html.div [] [ Html.text "Please choose a key" ]
@@ -131,13 +155,13 @@ viewKeys majorScaleAndKey =
 
 viewChords : Model -> TheoryApi.MajorScaleAndKey -> Html Msg
 viewChords model chosenKeyAndScale =
-            case model.maybeChords of
-                Just chords ->
-                    Html.div [ HA.class "chords-container" ]
-                        (List.map (viewChord chosenKeyAndScale) chords)
+    case model.maybeChords of
+        Just chords ->
+            Html.div [ HA.class "chords-container" ]
+                (List.map (viewChord chosenKeyAndScale) chords) 
 
-                Nothing ->
-                    Html.div [] [ Html.text "No chords found" ]
+        Nothing ->
+            Html.div [] [ Html.text "No chords found" ]
 
 
 viewChord : TheoryApi.MajorScaleAndKey -> TheoryApi.Chord -> Html Msg
@@ -155,6 +179,22 @@ viewRandomizedChord model =
 
         Nothing ->
             Html.p [] [ Html.text "No chord found" ]
+
+
+viewGameOverMessage : Model -> Html Msg
+viewGameOverMessage model =
+    Html.div
+        [ HA.class "game-over-message-container"
+        , if not model.gameOver then
+            HA.style "display" "none"
+
+          else
+            HA.style "display" ""
+        ]
+        [ Html.p [] [ Html.text "You lose" ]
+        , Html.p []
+            [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Try again" ] ]
+        ]
 
 
 listTuplesToListString : List ( Int, String ) -> List String
@@ -199,41 +239,6 @@ randomizeChord =
     Random.generate RandomChordPicked (Random.int 0 3)
 
 
-viewGameOverOrWinMessage : Model -> Html Msg
-viewGameOverOrWinMessage model =
-    case model.result of
-        Just Win ->
-            Html.div
-                [ HA.class "game-over-message-container"
-                , if not model.gameOver then
-                    HA.style "display" "none"
-
-                  else
-                    HA.style "display" ""
-                ]
-                [ Html.p [] [ Html.text "You win!" ]
-                , Html.p []
-                    [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Play again" ] ]
-                ]
-
-        Just Lose ->
-            Html.div
-                [ HA.class "game-over-message-container"
-                , if not model.gameOver then
-                    HA.style "display" "none"
-
-                  else
-                    HA.style "display" ""
-                ]
-                [ Html.p [] [ Html.text "Game over" ]
-                , Html.p []
-                    [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Try again" ] ]
-                ]
-
-        Nothing ->
-            Html.div [] []
-
-
 checkIfChordIsCorrect : Model -> ( Model, Cmd Msg )
 checkIfChordIsCorrect model =
     case ( model.maybeChosenChord, model.randomizedChord ) of
@@ -242,16 +247,25 @@ checkIfChordIsCorrect model =
                 let
                     _ =
                         Debug.log "Win!" "Win"
+
+                    newScore =
+                        model.score + 1
                 in
-                ( { model | result = Just Win }, randomizeChord )
+                ( { model | score = newScore }, randomizeChord )
 
             else
-                ( { model | result = Just Lose }, Cmd.none )
+                let
+                    newMistakes =
+                        model.mistakes + 1
+
+                    setGameOver =
+                        if model.mistakes == 2 then
+                            True
+
+                        else
+                            False
+                in
+                ( { model | mistakes = newMistakes, gameOver = setGameOver }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
-
-
-
--- Same chord shouldnt be viewed after. since randomize function only is between 0-3
--- same number gets randomized
