@@ -3,9 +3,9 @@ module Main exposing (..)
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
 import Games.ChordExercise as ChordExercise
+import Games.FretboardGame as FretboardGame
 import Games.ModeExercise as ModeExercise
 import Games.NoteExercise as NoteExercise
-import Games.FretboardGame as FretboardGame
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
@@ -54,10 +54,17 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         , onUrlChange = UrlChanged
         , onUrlRequest = LinkClicked
         }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ Sub.map FretboardGameMsg (FretboardGame.subscriptions model.fretboardGameModel)
+        ]
 
 
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -74,8 +81,8 @@ init flags url key =
             ModeExercise.init flags
 
         ( chordExerciseModel, chordExerciseCmd ) =
-            ChordExercise.init flags        
-            
+            ChordExercise.init flags
+
         ( fretboardGameModel, fretboardGameCmd ) =
             FretboardGame.init ()
     in
@@ -155,7 +162,7 @@ update msg model =
         ChordExerciseMsg subMsg ->
             let
                 ( updatedGameModel, cmd ) =
-                    ChordExercise.update subMsg model.chordExerciseModel 
+                    ChordExercise.update subMsg model.chordExerciseModel
             in
             ( { model | chordExerciseModel = updatedGameModel }
             , Cmd.map ChordExerciseMsg cmd
@@ -164,7 +171,7 @@ update msg model =
         FretboardGameMsg subMsg ->
             let
                 ( updatedGameModel, cmd ) =
-                    FretboardGame.update subMsg model.fretboardGameModel 
+                    FretboardGame.update subMsg model.fretboardGameModel
             in
             ( { model | fretboardGameModel = updatedGameModel }
             , Cmd.map FretboardGameMsg cmd
@@ -179,7 +186,7 @@ update msg model =
                     ModeExercise.update (ModeExercise.GotTheoryDb db) model.modeExerciseModel
 
                 ( updatedChordModel, chordCmd ) =
-                    ChordExercise.update (ChordExercise.GotTheoryDb db) model.chordExerciseModel 
+                    ChordExercise.update (ChordExercise.GotTheoryDb db) model.chordExerciseModel
             in
             ( { model
                 | theoryDb = RemoteData.Success db
@@ -187,7 +194,7 @@ update msg model =
                 , modeExerciseModel = updatedModeModel
                 , chordExerciseModel = updatedChordModel
               }
-            , Cmd.batch 
+            , Cmd.batch
                 [ Cmd.map NoteExerciseMsg noteCmd
                 , Cmd.map ModeExerciseMsg modeCmd
                 , Cmd.map ChordExerciseMsg chordCmd

@@ -11149,11 +11149,11 @@ var $author$project$Games$ChordExercise$init = function (flags) {
 var $author$project$Games$FretboardGame$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
-			display: _Utils_Tuple2(24, 14),
 			fretCount: 12,
 			player: {fret: 0, string: 1},
 			stringCount: 6,
-			targetNote: 'C'
+			targetNote: 'C',
+			userPosition: _Utils_Tuple2(24, 14)
 		},
 		$elm$core$Platform$Cmd$none);
 };
@@ -11502,7 +11502,336 @@ var $author$project$Main$init = F3(
 					])));
 	});
 var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $author$project$Games$FretboardGame$KeyDown = function (a) {
+	return {$: 'KeyDown', a: a};
+};
+var $author$project$Games$FretboardGame$KeyUp = function (a) {
+	return {$: 'KeyUp', a: a};
+};
+var $author$project$Games$FretboardGame$Tick = function (a) {
+	return {$: 'Tick', a: a};
+};
+var $author$project$Games$FretboardGame$keyDecoder = A2($elm$json$Json$Decode$field, 'key', $elm$json$Json$Decode$string);
+var $elm$browser$Browser$AnimationManager$Time = function (a) {
+	return {$: 'Time', a: a};
+};
+var $elm$browser$Browser$AnimationManager$State = F3(
+	function (subs, request, oldTime) {
+		return {oldTime: oldTime, request: request, subs: subs};
+	});
+var $elm$browser$Browser$AnimationManager$init = $elm$core$Task$succeed(
+	A3($elm$browser$Browser$AnimationManager$State, _List_Nil, $elm$core$Maybe$Nothing, 0));
+var $elm$browser$Browser$AnimationManager$now = _Browser_now(_Utils_Tuple0);
+var $elm$browser$Browser$AnimationManager$rAF = _Browser_rAF(_Utils_Tuple0);
+var $elm$browser$Browser$AnimationManager$onEffects = F3(
+	function (router, subs, _v0) {
+		var request = _v0.request;
+		var oldTime = _v0.oldTime;
+		var _v1 = _Utils_Tuple2(request, subs);
+		if (_v1.a.$ === 'Nothing') {
+			if (!_v1.b.b) {
+				var _v2 = _v1.a;
+				return $elm$browser$Browser$AnimationManager$init;
+			} else {
+				var _v4 = _v1.a;
+				return A2(
+					$elm$core$Task$andThen,
+					function (pid) {
+						return A2(
+							$elm$core$Task$andThen,
+							function (time) {
+								return $elm$core$Task$succeed(
+									A3(
+										$elm$browser$Browser$AnimationManager$State,
+										subs,
+										$elm$core$Maybe$Just(pid),
+										time));
+							},
+							$elm$browser$Browser$AnimationManager$now);
+					},
+					$elm$core$Process$spawn(
+						A2(
+							$elm$core$Task$andThen,
+							$elm$core$Platform$sendToSelf(router),
+							$elm$browser$Browser$AnimationManager$rAF)));
+			}
+		} else {
+			if (!_v1.b.b) {
+				var pid = _v1.a.a;
+				return A2(
+					$elm$core$Task$andThen,
+					function (_v3) {
+						return $elm$browser$Browser$AnimationManager$init;
+					},
+					$elm$core$Process$kill(pid));
+			} else {
+				return $elm$core$Task$succeed(
+					A3($elm$browser$Browser$AnimationManager$State, subs, request, oldTime));
+			}
+		}
+	});
+var $elm$time$Time$Posix = function (a) {
+	return {$: 'Posix', a: a};
+};
+var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
+var $elm$browser$Browser$AnimationManager$onSelfMsg = F3(
+	function (router, newTime, _v0) {
+		var subs = _v0.subs;
+		var oldTime = _v0.oldTime;
+		var send = function (sub) {
+			if (sub.$ === 'Time') {
+				var tagger = sub.a;
+				return A2(
+					$elm$core$Platform$sendToApp,
+					router,
+					tagger(
+						$elm$time$Time$millisToPosix(newTime)));
+			} else {
+				var tagger = sub.a;
+				return A2(
+					$elm$core$Platform$sendToApp,
+					router,
+					tagger(newTime - oldTime));
+			}
+		};
+		return A2(
+			$elm$core$Task$andThen,
+			function (pid) {
+				return A2(
+					$elm$core$Task$andThen,
+					function (_v1) {
+						return $elm$core$Task$succeed(
+							A3(
+								$elm$browser$Browser$AnimationManager$State,
+								subs,
+								$elm$core$Maybe$Just(pid),
+								newTime));
+					},
+					$elm$core$Task$sequence(
+						A2($elm$core$List$map, send, subs)));
+			},
+			$elm$core$Process$spawn(
+				A2(
+					$elm$core$Task$andThen,
+					$elm$core$Platform$sendToSelf(router),
+					$elm$browser$Browser$AnimationManager$rAF)));
+	});
+var $elm$browser$Browser$AnimationManager$Delta = function (a) {
+	return {$: 'Delta', a: a};
+};
+var $elm$browser$Browser$AnimationManager$subMap = F2(
+	function (func, sub) {
+		if (sub.$ === 'Time') {
+			var tagger = sub.a;
+			return $elm$browser$Browser$AnimationManager$Time(
+				A2($elm$core$Basics$composeL, func, tagger));
+		} else {
+			var tagger = sub.a;
+			return $elm$browser$Browser$AnimationManager$Delta(
+				A2($elm$core$Basics$composeL, func, tagger));
+		}
+	});
+_Platform_effectManagers['Browser.AnimationManager'] = _Platform_createManager($elm$browser$Browser$AnimationManager$init, $elm$browser$Browser$AnimationManager$onEffects, $elm$browser$Browser$AnimationManager$onSelfMsg, 0, $elm$browser$Browser$AnimationManager$subMap);
+var $elm$browser$Browser$AnimationManager$subscription = _Platform_leaf('Browser.AnimationManager');
+var $elm$browser$Browser$AnimationManager$onAnimationFrame = function (tagger) {
+	return $elm$browser$Browser$AnimationManager$subscription(
+		$elm$browser$Browser$AnimationManager$Time(tagger));
+};
+var $elm$browser$Browser$Events$onAnimationFrame = $elm$browser$Browser$AnimationManager$onAnimationFrame;
+var $elm$browser$Browser$Events$Document = {$: 'Document'};
+var $elm$browser$Browser$Events$MySub = F3(
+	function (a, b, c) {
+		return {$: 'MySub', a: a, b: b, c: c};
+	});
+var $elm$browser$Browser$Events$State = F2(
+	function (subs, pids) {
+		return {pids: pids, subs: subs};
+	});
+var $elm$browser$Browser$Events$init = $elm$core$Task$succeed(
+	A2($elm$browser$Browser$Events$State, _List_Nil, $elm$core$Dict$empty));
+var $elm$browser$Browser$Events$nodeToKey = function (node) {
+	if (node.$ === 'Document') {
+		return 'd_';
+	} else {
+		return 'w_';
+	}
+};
+var $elm$browser$Browser$Events$addKey = function (sub) {
+	var node = sub.a;
+	var name = sub.b;
+	return _Utils_Tuple2(
+		_Utils_ap(
+			$elm$browser$Browser$Events$nodeToKey(node),
+			name),
+		sub);
+};
+var $elm$browser$Browser$Events$Event = F2(
+	function (key, event) {
+		return {event: event, key: key};
+	});
+var $elm$browser$Browser$Events$spawn = F3(
+	function (router, key, _v0) {
+		var node = _v0.a;
+		var name = _v0.b;
+		var actualNode = function () {
+			if (node.$ === 'Document') {
+				return _Browser_doc;
+			} else {
+				return _Browser_window;
+			}
+		}();
+		return A2(
+			$elm$core$Task$map,
+			function (value) {
+				return _Utils_Tuple2(key, value);
+			},
+			A3(
+				_Browser_on,
+				actualNode,
+				name,
+				function (event) {
+					return A2(
+						$elm$core$Platform$sendToSelf,
+						router,
+						A2($elm$browser$Browser$Events$Event, key, event));
+				}));
+	});
+var $elm$core$Dict$union = F2(
+	function (t1, t2) {
+		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
+	});
+var $elm$browser$Browser$Events$onEffects = F3(
+	function (router, subs, state) {
+		var stepRight = F3(
+			function (key, sub, _v6) {
+				var deads = _v6.a;
+				var lives = _v6.b;
+				var news = _v6.c;
+				return _Utils_Tuple3(
+					deads,
+					lives,
+					A2(
+						$elm$core$List$cons,
+						A3($elm$browser$Browser$Events$spawn, router, key, sub),
+						news));
+			});
+		var stepLeft = F3(
+			function (_v4, pid, _v5) {
+				var deads = _v5.a;
+				var lives = _v5.b;
+				var news = _v5.c;
+				return _Utils_Tuple3(
+					A2($elm$core$List$cons, pid, deads),
+					lives,
+					news);
+			});
+		var stepBoth = F4(
+			function (key, pid, _v2, _v3) {
+				var deads = _v3.a;
+				var lives = _v3.b;
+				var news = _v3.c;
+				return _Utils_Tuple3(
+					deads,
+					A3($elm$core$Dict$insert, key, pid, lives),
+					news);
+			});
+		var newSubs = A2($elm$core$List$map, $elm$browser$Browser$Events$addKey, subs);
+		var _v0 = A6(
+			$elm$core$Dict$merge,
+			stepLeft,
+			stepBoth,
+			stepRight,
+			state.pids,
+			$elm$core$Dict$fromList(newSubs),
+			_Utils_Tuple3(_List_Nil, $elm$core$Dict$empty, _List_Nil));
+		var deadPids = _v0.a;
+		var livePids = _v0.b;
+		var makeNewPids = _v0.c;
+		return A2(
+			$elm$core$Task$andThen,
+			function (pids) {
+				return $elm$core$Task$succeed(
+					A2(
+						$elm$browser$Browser$Events$State,
+						newSubs,
+						A2(
+							$elm$core$Dict$union,
+							livePids,
+							$elm$core$Dict$fromList(pids))));
+			},
+			A2(
+				$elm$core$Task$andThen,
+				function (_v1) {
+					return $elm$core$Task$sequence(makeNewPids);
+				},
+				$elm$core$Task$sequence(
+					A2($elm$core$List$map, $elm$core$Process$kill, deadPids))));
+	});
+var $elm$browser$Browser$Events$onSelfMsg = F3(
+	function (router, _v0, state) {
+		var key = _v0.key;
+		var event = _v0.event;
+		var toMessage = function (_v2) {
+			var subKey = _v2.a;
+			var _v3 = _v2.b;
+			var node = _v3.a;
+			var name = _v3.b;
+			var decoder = _v3.c;
+			return _Utils_eq(subKey, key) ? A2(_Browser_decodeEvent, decoder, event) : $elm$core$Maybe$Nothing;
+		};
+		var messages = A2($elm$core$List$filterMap, toMessage, state.subs);
+		return A2(
+			$elm$core$Task$andThen,
+			function (_v1) {
+				return $elm$core$Task$succeed(state);
+			},
+			$elm$core$Task$sequence(
+				A2(
+					$elm$core$List$map,
+					$elm$core$Platform$sendToApp(router),
+					messages)));
+	});
+var $elm$browser$Browser$Events$subMap = F2(
+	function (func, _v0) {
+		var node = _v0.a;
+		var name = _v0.b;
+		var decoder = _v0.c;
+		return A3(
+			$elm$browser$Browser$Events$MySub,
+			node,
+			name,
+			A2($elm$json$Json$Decode$map, func, decoder));
+	});
+_Platform_effectManagers['Browser.Events'] = _Platform_createManager($elm$browser$Browser$Events$init, $elm$browser$Browser$Events$onEffects, $elm$browser$Browser$Events$onSelfMsg, 0, $elm$browser$Browser$Events$subMap);
+var $elm$browser$Browser$Events$subscription = _Platform_leaf('Browser.Events');
+var $elm$browser$Browser$Events$on = F3(
+	function (node, name, decoder) {
+		return $elm$browser$Browser$Events$subscription(
+			A3($elm$browser$Browser$Events$MySub, node, name, decoder));
+	});
+var $elm$browser$Browser$Events$onKeyDown = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'keydown');
+var $elm$browser$Browser$Events$onKeyUp = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'keyup');
+var $author$project$Games$FretboardGame$subscriptions = function (_v0) {
+	return $elm$core$Platform$Sub$batch(
+		_List_fromArray(
+			[
+				$elm$browser$Browser$Events$onKeyDown(
+				A2($elm$json$Json$Decode$map, $author$project$Games$FretboardGame$KeyDown, $author$project$Games$FretboardGame$keyDecoder)),
+				$elm$browser$Browser$Events$onKeyUp(
+				A2($elm$json$Json$Decode$map, $author$project$Games$FretboardGame$KeyUp, $author$project$Games$FretboardGame$keyDecoder)),
+				$elm$browser$Browser$Events$onAnimationFrame($author$project$Games$FretboardGame$Tick)
+			]));
+};
+var $author$project$Main$subscriptions = function (model) {
+	return $elm$core$Platform$Sub$batch(
+		_List_fromArray(
+			[
+				A2(
+				$elm$core$Platform$Sub$map,
+				$author$project$Main$FretboardGameMsg,
+				$author$project$Games$FretboardGame$subscriptions(model.fretboardGameModel))
+			]));
+};
 var $author$project$Games$ChordExercise$GotTheoryDb = function (a) {
 	return {$: 'GotTheoryDb', a: a};
 };
@@ -11597,10 +11926,6 @@ var $elm$time$Time$Zone = F2(
 		return {$: 'Zone', a: a, b: b};
 	});
 var $elm$time$Time$customZone = $elm$time$Time$Zone;
-var $elm$time$Time$Posix = function (a) {
-	return {$: 'Posix', a: a};
-};
-var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
 var $elm$time$Time$posixToMillis = function (_v0) {
 	var millis = _v0.a;
@@ -11828,6 +12153,8 @@ var $author$project$Games$ChordExercise$update = F2(
 					$elm$core$Platform$Cmd$none);
 		}
 	});
+var $author$project$Games$FretboardGame$Down = {$: 'Down'};
+var $author$project$Games$FretboardGame$Up = {$: 'Up'};
 var $author$project$Games$FretboardGame$lerp = F3(
 	function (a, b, t) {
 		return a + ((b - a) * t);
@@ -11836,33 +12163,41 @@ var $author$project$Games$FretboardGame$clamp = F3(
 	function (lo, hi, val) {
 		return (_Utils_cmp(val, lo) < 0) ? lo : ((_Utils_cmp(val, hi) > 0) ? hi : val);
 	});
-var $author$project$Games$FretboardGame$move = F3(
-	function (key, pos, model) {
+var $author$project$Games$FretboardGame$move = F4(
+	function (key, upOrDown, pos, model) {
 		switch (key) {
 			case 'ArrowLeft':
-				return _Utils_update(
+				return _Utils_eq(upOrDown, $author$project$Games$FretboardGame$Down) ? _Utils_update(
 					pos,
 					{
 						fret: A3($author$project$Games$FretboardGame$clamp, 0, model.fretCount - 1, pos.fret - 1)
+					}) : _Utils_update(
+					pos,
+					{
+						fret: A3($author$project$Games$FretboardGame$clamp, 0, model.fretCount - 1, pos.fret - 0)
 					});
 			case 'ArrowRight':
-				return _Utils_update(
+				return _Utils_eq(upOrDown, $author$project$Games$FretboardGame$Down) ? _Utils_update(
 					pos,
 					{
 						fret: A3($author$project$Games$FretboardGame$clamp, 0, model.fretCount - 1, pos.fret + 1)
+					}) : _Utils_update(
+					pos,
+					{
+						fret: A3($author$project$Games$FretboardGame$clamp, 0, model.fretCount - 1, pos.fret + 0)
 					});
 			case 'ArrowUp':
-				return _Utils_update(
+				return _Utils_eq(upOrDown, $author$project$Games$FretboardGame$Down) ? _Utils_update(
 					pos,
 					{
 						string: A3($author$project$Games$FretboardGame$clamp, 1, model.stringCount, pos.string - 1)
-					});
+					}) : pos;
 			case 'ArrowDown':
-				return _Utils_update(
+				return _Utils_eq(upOrDown, $author$project$Games$FretboardGame$Down) ? _Utils_update(
 					pos,
 					{
 						string: A3($author$project$Games$FretboardGame$clamp, 1, model.stringCount, pos.string + 1)
-					});
+					}) : pos;
 			default:
 				return pos;
 		}
@@ -11874,30 +12209,39 @@ var $author$project$Games$FretboardGame$posToXY = function (pos) {
 };
 var $author$project$Games$FretboardGame$update = F2(
 	function (msg, model) {
-		if (msg.$ === 'KeyDown') {
-			var key = msg.a;
-			var newPos = A3($author$project$Games$FretboardGame$move, key, model.player, model);
-			return _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{player: newPos}),
-				$elm$core$Platform$Cmd$none);
-		} else {
-			var target = $author$project$Games$FretboardGame$posToXY(model.player);
-			var _v1 = model.display;
-			var x = _v1.a;
-			var y = _v1.b;
-			var _v2 = target;
-			var tx = _v2.a;
-			var ty = _v2.b;
-			var newDisplay = _Utils_Tuple2(
-				A3($author$project$Games$FretboardGame$lerp, x, tx, 0.2),
-				A3($author$project$Games$FretboardGame$lerp, y, ty, 0.2));
-			return _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{display: newDisplay}),
-				$elm$core$Platform$Cmd$none);
+		switch (msg.$) {
+			case 'KeyDown':
+				var key = msg.a;
+				var newPos = A4($author$project$Games$FretboardGame$move, key, $author$project$Games$FretboardGame$Down, model.player, model);
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{player: newPos}),
+					$elm$core$Platform$Cmd$none);
+			case 'KeyUp':
+				var key = msg.a;
+				var newPos = A4($author$project$Games$FretboardGame$move, key, $author$project$Games$FretboardGame$Up, model.player, model);
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{player: newPos}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				var target = $author$project$Games$FretboardGame$posToXY(model.player);
+				var _v1 = model.userPosition;
+				var x = _v1.a;
+				var y = _v1.b;
+				var _v2 = target;
+				var tx = _v2.a;
+				var ty = _v2.b;
+				var newuserPosition = _Utils_Tuple2(
+					A3($author$project$Games$FretboardGame$lerp, x, tx, 0.2),
+					A3($author$project$Games$FretboardGame$lerp, y, ty, 0.2));
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{userPosition: newuserPosition}),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
 var $author$project$Games$ModeExercise$Lose = {$: 'Lose'};
@@ -12925,6 +13269,7 @@ var $author$project$Games$ChordExercise$view = function (model) {
 };
 var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
 var $elm$svg$Svg$line = $elm$svg$Svg$trustedNode('line');
+var $elm$core$Basics$round = _Basics_round;
 var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
 var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
 var $elm$svg$Svg$Attributes$x1 = _VirtualDom_attribute('x1');
@@ -12937,6 +13282,38 @@ var $author$project$Games$FretboardGame$drawFretboard = function (model) {
 	return $elm$core$List$concat(
 		_List_fromArray(
 			[
+				A2(
+				$elm$core$List$map,
+				function (f) {
+					return A2(
+						$elm$svg$Svg$line,
+						A2(
+							$elm$core$List$append,
+							_List_fromArray(
+								[
+									$elm$svg$Svg$Attributes$x1(
+									$elm$core$String$fromFloat(f * fretWidth)),
+									$elm$svg$Svg$Attributes$x2(
+									$elm$core$String$fromFloat(f * fretWidth)),
+									$elm$svg$Svg$Attributes$y1('14'),
+									$elm$svg$Svg$Attributes$y2(
+									$elm$core$String$fromFloat((model.stringCount * stringSpacing) - 14))
+								]),
+							(f === 1) ? _List_fromArray(
+								[
+									$elm$svg$Svg$Attributes$strokeWidth('10'),
+									$elm$svg$Svg$Attributes$stroke('black')
+								]) : _List_fromArray(
+								[
+									$elm$svg$Svg$Attributes$strokeWidth('1'),
+									$elm$svg$Svg$Attributes$stroke('#ccc')
+								])),
+						_List_Nil);
+				},
+				A2(
+					$elm$core$List$range,
+					0,
+					$elm$core$Basics$round(model.fretCount))),
 				A2(
 				$elm$core$List$map,
 				function (i) {
@@ -12956,26 +13333,10 @@ var $author$project$Games$FretboardGame$drawFretboard = function (model) {
 							]),
 						_List_Nil);
 				},
-				A2($elm$core$List$range, 1, model.stringCount)),
 				A2(
-				$elm$core$List$map,
-				function (f) {
-					return A2(
-						$elm$svg$Svg$line,
-						_List_fromArray(
-							[
-								$elm$svg$Svg$Attributes$x1(
-								$elm$core$String$fromFloat(f * fretWidth)),
-								$elm$svg$Svg$Attributes$x2(
-								$elm$core$String$fromFloat(f * fretWidth)),
-								$elm$svg$Svg$Attributes$y1('0'),
-								$elm$svg$Svg$Attributes$y2(
-								$elm$core$String$fromFloat(model.stringCount * stringSpacing)),
-								$elm$svg$Svg$Attributes$stroke('#ccc')
-							]),
-						_List_Nil);
-				},
-				A2($elm$core$List$range, 0, model.fretCount))
+					$elm$core$List$range,
+					1,
+					$elm$core$Basics$round(model.stringCount)))
 			]));
 };
 var $elm$svg$Svg$circle = $elm$svg$Svg$trustedNode('circle');
@@ -12984,7 +13345,7 @@ var $elm$svg$Svg$g = $elm$svg$Svg$trustedNode('g');
 var $elm$svg$Svg$Attributes$r = _VirtualDom_attribute('r');
 var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
 var $author$project$Games$FretboardGame$drawPlayer = function (model) {
-	var _v0 = model.display;
+	var _v0 = model.userPosition;
 	var x = _v0.a;
 	var y = _v0.b;
 	return A2(
@@ -13009,6 +13370,7 @@ var $author$project$Games$FretboardGame$drawPlayer = function (model) {
 var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
 var $elm$svg$Svg$Attributes$style = _VirtualDom_attribute('style');
 var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
+var $elm$core$Debug$toString = _Debug_toString;
 var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
 var $author$project$Games$FretboardGame$view = function (model) {
 	return A2(
@@ -13022,6 +13384,14 @@ var $author$project$Games$FretboardGame$view = function (model) {
 				_List_fromArray(
 					[
 						$elm$html$Html$text('Find note: ' + model.targetNote)
+					])),
+				A2(
+				$elm$html$Html$p,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text(
+						$elm$core$Debug$toString(model.userPosition))
 					])),
 				A2(
 				$elm$svg$Svg$svg,
@@ -13530,7 +13900,6 @@ var $author$project$Games$ModeExercise$viewModeBuilderGame = function (model) {
 				]));
 	}
 };
-var $elm$core$Debug$toString = _Debug_toString;
 var $author$project$Games$ModeExercise$viewConstructMode = function (constructedNote) {
 	return A2(
 		$elm$html$Html$div,
@@ -14288,14 +14657,5 @@ var $author$project$Main$view = function (model) {
 	};
 };
 var $author$project$Main$main = $elm$browser$Browser$application(
-	{
-		init: $author$project$Main$init,
-		onUrlChange: $author$project$Main$UrlChanged,
-		onUrlRequest: $author$project$Main$LinkClicked,
-		subscriptions: function (_v0) {
-			return $elm$core$Platform$Sub$none;
-		},
-		update: $author$project$Main$update,
-		view: $author$project$Main$view
-	});
-_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"FretboardGameMsg":["Games.FretboardGame.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"KeyAndScaleChosen":["Games.TheoryApi.MajorScaleAndKey"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"RandomChordPicked":["Basics.Int"],"ChordChosen":["Games.TheoryApi.Chord"],"Reset":[]}},"Games.FretboardGame.Msg":{"args":[],"tags":{"KeyDown":["String.String"],"Tick":["Time.Posix"]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"Reset":["Basics.Bool"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));
+	{init: $author$project$Main$init, onUrlChange: $author$project$Main$UrlChanged, onUrlRequest: $author$project$Main$LinkClicked, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"FretboardGameMsg":["Games.FretboardGame.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"KeyAndScaleChosen":["Games.TheoryApi.MajorScaleAndKey"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"RandomChordPicked":["Basics.Int"],"ChordChosen":["Games.TheoryApi.Chord"],"Reset":[]}},"Games.FretboardGame.Msg":{"args":[],"tags":{"KeyDown":["String.String"],"KeyUp":["String.String"],"Tick":["Time.Posix"]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"Reset":["Basics.Bool"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));
