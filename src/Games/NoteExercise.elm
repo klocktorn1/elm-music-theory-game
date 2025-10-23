@@ -4,7 +4,6 @@ import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
-import Http
 import Json.Encode as Encode
 import Process
 import Random
@@ -38,6 +37,7 @@ type alias Model =
     , exerciseStep : Int
     , noteAndOriginalIndexTuplePrompted : Maybe ( Int, TheoryApi.Note )
     , result : Maybe GameFinished
+  
     }
 
 
@@ -62,6 +62,7 @@ type Msg
     | Reset Bool
 
 
+
 type GameFinished
     = Win
     | Lose
@@ -75,9 +76,6 @@ saveWins numberOfWins =
     Encode.int numberOfWins
         |> Encode.encode 0
         |> sendToLocalStorage
-
-
-
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -116,7 +114,7 @@ update msg model =
             newModel
 
         GotTheoryDb db ->
-            ({model | maybeMajorScalesAndKeys = Just db.majorScalesAndKeys}, Cmd.none)
+            ( { model | maybeMajorScalesAndKeys = Just db.majorScalesAndKeys }, Cmd.none )
 
         Shuffle ->
             case model.maybeChosenScale of
@@ -199,6 +197,8 @@ update msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
+
+ 
 
 
 view : Model -> Html Msg

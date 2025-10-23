@@ -12,6 +12,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Http
 import RemoteData
+import Time exposing (Posix)
 import Url
 import Url.Parser as UP exposing ((</>), (<?>))
 
@@ -25,6 +26,10 @@ type alias Model =
     , modeExerciseModel : ModeExercise.Model
     , chordExerciseModel : ChordExercise.Model
     , fretboardGameModel : FretboardGame.Model
+    , isOnFretboardPage : Bool
+    , running : Bool
+    , timerInMs : Int
+    , test : Float
     }
 
 
@@ -36,6 +41,9 @@ type Msg
     | ChordExerciseMsg ChordExercise.Msg
     | FretboardGameMsg FretboardGame.Msg
     | GotTheoryDb (Result Http.Error TheoryApi.TheoryDb)
+    | Tick Posix
+    | Start
+    | Stop
 
 
 type Route
@@ -62,9 +70,16 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Sub.map FretboardGameMsg (FretboardGame.subscriptions model.fretboardGameModel)
-        ]
+    if model.running then
+        Sub.batch
+            [ Sub.map FretboardGameMsg (FretboardGame.subscriptions model.fretboardGameModel)
+            , Time.every 10 Tick
+            ]
+
+    else
+        Sub.batch
+            [ Sub.map FretboardGameMsg (FretboardGame.subscriptions model.fretboardGameModel)
+            ]
 
 
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -94,6 +109,10 @@ init flags url key =
       , chordExerciseModel = chordExerciseModel
       , fretboardGameModel = fretboardGameModel
       , theoryDb = RemoteData.Loading
+      , isOnFretboardPage = False
+      , running = False
+      , timerInMs = 0
+      , test = 1
       }
     , Cmd.batch
         [ Cmd.map
@@ -130,8 +149,21 @@ update msg model =
                 newRoute =
                     UP.parse routeParser newUrl
                         |> Maybe.withDefault NotFound
+
+                setIsOnFretboardPage =
+                    newUrl.path == "/game/fretboard-game"
+
+                ( updatedFretboardModel, fretboardCmd ) =
+                    FretboardGame.setIsOnPage setIsOnFretboardPage model.fretboardGameModel
             in
-            ( { model | url = newUrl, route = newRoute }, Cmd.none )
+            ( { model
+                | url = newUrl
+                , route = newRoute
+                , isOnFretboardPage = setIsOnFretboardPage
+                , fretboardGameModel = updatedFretboardModel
+              }
+            , Cmd.map FretboardGameMsg fretboardCmd
+            )
 
         LinkClicked urlRequest ->
             case urlRequest of
@@ -204,6 +236,15 @@ update msg model =
         GotTheoryDb (Err error) ->
             ( model, Cmd.none )
 
+        Tick _ ->
+            ( { model | timerInMs = model.timerInMs + 100 }, Cmd.none )
+
+        Start ->
+            ( { model | running = True, timerInMs = model.timerInMs + 10000 }, Cmd.none )
+
+        Stop ->
+            ( { model | running = False }, Cmd.none )
+
 
 view : Model -> Browser.Document Msg
 view model =
@@ -211,6 +252,12 @@ view model =
     , body =
         [ Html.div [ HA.class "wrapper" ]
             [ viewHeader model.url.path
+            , Html.text <| String.fromFloat (toFloat model.timerInMs / 100)
+            , if not model.running then
+                Html.button [ HE.onClick Start ] [ Html.text "Start" ]
+
+              else
+                Html.button [ HE.onClick Stop ] [ Html.text "Stop" ]
             , Html.main_ [ HA.class "content-container" ]
                 [ viewRoute model
                 ]

@@ -265,7 +265,7 @@ viewModeBuilderGame model =
             Html.div []
                 [ Html.p [] [ Html.text ("Please build the " ++ chosenKey.key ++ " " ++ model.randomizedMode.mode ++ " mode") ]
                 , NoteBuilder.viewNotes AddToModeBuilderList model.allNotes chosenKey.key
-                , Html.p [ HA.class "user-built-mode-notes-container" ]
+                , Html.p [ HA.class "user-built-notes-container" ]
                     (List.reverse (List.map viewUserBuiltMode model.userBuiltMode))
                 , if model.userBuiltMode == [] then
                     Html.div [] []

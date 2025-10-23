@@ -11,7 +11,13 @@
 flashing wrong made with chatgpt, should try to understand this better. maybe rewrite it from memory
 
 
-
+For all games:
+   a timer maybe? 
+   -> user presses exercise in header
+   -> render start button (maybe info on how to play game also)
+   -> user presses start, render game
+   -> start timer
+   -> when user presses finish button or exits game, stats are saved. (time, score, mistakes) 
 
 
 chord game
@@ -34,6 +40,6 @@ chord builder logic
 
 
 
-   postgreSql, prisma for db
+   postgreSql, prisma for db graphql
 
    maybe shoelace css 

@@ -3,6 +3,7 @@ module Games.FretboardGame exposing (..)
 import Browser
 import Browser.Events exposing (onAnimationFrame, onKeyDown, onKeyUp)
 import Html exposing (Html)
+import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as Decode
 import Svg exposing (Svg, svg)
@@ -26,6 +27,7 @@ type alias Model =
     , userPosition : ( Float, Float )
     , fretCount : Float
     , stringCount : Float
+    , isOnPage : Bool
     }
 
 
@@ -41,6 +43,7 @@ init _ =
       , userPosition = ( 24, 14 ) -- starting pixel position
       , fretCount = 12
       , stringCount = 6
+      , isOnPage = False
       }
     , Cmd.none
     )
@@ -54,6 +57,7 @@ type Msg
     = KeyDown String
     | KeyUp String
     | Tick Posix
+    | SetIsOnPage Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -90,6 +94,14 @@ update msg model =
             ( { model | userPosition = newuserPosition }
             , Cmd.none
             )
+
+        SetIsOnPage isOnPage ->
+            ( { model | isOnPage = isOnPage }, Cmd.none )
+
+
+setIsOnPage : Bool -> Model -> ( Model, Cmd Msg )
+setIsOnPage isOnPage model =
+    update (SetIsOnPage isOnPage) model
 
 
 
@@ -159,11 +171,15 @@ lerp a b t =
 view : Model -> Html Msg
 view model =
     Html.div []
-        [ Html.div [] [ Html.text ("Find note: " ++ model.targetNote)]
-        , Html.p [] [Html.text <| Debug.toString model.userPosition ]
-        , svg
-            [ SVGA.width "800", SVGA.height "200", SVGA.style "background:#f0f0f0" ]
-            (drawFretboard model ++ [ drawPlayer model ])
+        [ Html.div [] [ Html.text ("Find note: " ++ model.targetNote) ]
+        , Html.p [] [ Html.text <| Debug.toString (model.userPosition) ]
+        , if model.isOnPage == True then
+            svg
+                [ SVGA.width "800", SVGA.height "200", SVGA.style "background:#f0f0f0" ]
+                (drawFretboard model ++ [ drawPlayer model ])
+
+          else
+            Html.div [] []
         ]
 
 
@@ -182,7 +198,6 @@ drawFretboard model =
             (\f ->
                 Svg.line
                     (List.append
-                    
                         [ SVGA.x1 (String.fromFloat (toFloat f * fretWidth))
                         , SVGA.x2 (String.fromFloat (toFloat f * fretWidth))
                         , SVGA.y1 "14"
@@ -219,9 +234,6 @@ drawFretboard model =
         ]
 
 
-
-
-
 drawPlayer : Model -> Svg Msg
 drawPlayer model =
     let
@@ -255,12 +267,19 @@ posToXY pos =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.batch
-        [ onKeyDown (Decode.map KeyDown keyDecoder)
-        , onKeyUp (Decode.map KeyUp keyDecoder)
-        , onAnimationFrame Tick
-        ]
+subscriptions model =
+    if model.isOnPage == True then
+        Sub.batch
+            [ onKeyDown (Decode.map KeyDown keyDecoder)
+            , onKeyUp (Decode.map KeyUp keyDecoder)
+            , onAnimationFrame Tick
+            ]
+
+    else
+        Sub.batch
+            [ onKeyDown (Decode.map KeyDown keyDecoder)
+            , onKeyUp (Decode.map KeyUp keyDecoder)
+            ]
 
 
 keyDecoder : Decode.Decoder String

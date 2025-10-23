@@ -1,6 +1,7 @@
 module Games.ChordExercise exposing (..)
 
 import Array
+import Games.NoteBuilder as NoteBuilder
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
@@ -12,13 +13,17 @@ import Random
 type alias Model =
     { maybeChords : Maybe (List TheoryApi.Chord)
     , maybeMajorScalesAndKeys : Maybe (List TheoryApi.MajorScaleAndKey)
+    , gameMode : Maybe GameMode
+    , allNotes : Maybe (List String)
     , chosenKeyAndScale : Maybe TheoryApi.MajorScaleAndKey
     , maybeChosenChord : Maybe TheoryApi.Chord
     , randomizedChord : Maybe TheoryApi.Chord
     , lastRandomIndex : Maybe Int
     , constructedRandomizedChord : List String
     , constructedChosenChord : List String
+    , builtChord : List String
     , score : Int
+    , isBuiltCordCorrect : Bool
     , mistakes : Int
     , gameOver : Bool
     }
@@ -29,16 +34,22 @@ type Msg
     | GotTheoryDb TheoryApi.TheoryDb
     | RandomChordPicked Int
     | ChordChosen TheoryApi.Chord
-    | Reset
+    | GameModeChosen GameMode
+    | AddToChordBuilderList String
+    | SubmitBuiltChord
+    | ResetChordGuesser
+    | ResetChordBuilder
+    | GoBack
+    | Undo
 
 
 type alias Flags =
     String
 
+
 type GameMode
     = ChordGuesserGame
     | ChordBuilderGame
-
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -46,12 +57,16 @@ init flags =
     ( { maybeChords = Nothing
       , maybeMajorScalesAndKeys = Nothing
       , chosenKeyAndScale = Nothing
+      , allNotes = Nothing
+      , gameMode = Nothing
+      , builtChord = []
       , maybeChosenChord = Nothing
       , randomizedChord = Nothing
       , lastRandomIndex = Nothing
       , constructedRandomizedChord = []
       , constructedChosenChord = []
       , score = 0
+      , isBuiltCordCorrect = False
       , mistakes = 0
       , gameOver = False
       }
@@ -62,6 +77,9 @@ init flags =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GameModeChosen gameMode ->
+            ( { model | gameMode = Just gameMode }, Cmd.none )
+
         KeyAndScaleChosen key ->
             ( { model | chosenKeyAndScale = Just key }, randomizeChord )
 
@@ -69,6 +87,7 @@ update msg model =
             ( { model
                 | maybeMajorScalesAndKeys = Just db.majorScalesAndKeys
                 , maybeChords = Just db.chords
+                , allNotes = Just db.allNotes
               }
             , Cmd.none
             )
@@ -103,50 +122,158 @@ update msg model =
             in
             modelWithCheckedValues
 
-        Reset ->
+        AddToChordBuilderList note ->
+            let
+                newNoteToBuiltChord =
+                    note :: model.builtChord
+            in
+            ( { model | builtChord = newNoteToBuiltChord }, Cmd.none )
+
+        SubmitBuiltChord ->
+            checkIfChordBuiltCorrect model
+
+        ResetChordGuesser ->
             ( { model
-                | maybeChords = Nothing
-                , maybeChosenChord = Nothing
+                | maybeChosenChord = Nothing
                 , gameOver = False
                 , mistakes = 0
                 , score = 0
               }
             , Cmd.none
             )
+        Undo ->
+            let
+                newBuiltChord =
+                    List.drop 1 model.builtChord    
+            in
+            
+            ({model | builtChord = newBuiltChord}, Cmd.none)
+
+
+        ResetChordBuilder ->
+            ( { model
+                | isBuiltCordCorrect = False
+                , builtChord = []
+                , mistakes = 0
+                , score = 0
+              }
+            , Cmd.none
+            )
+
+        GoBack ->
+            ( { model | gameMode = Nothing }, Cmd.none )
 
 
 view : Model -> Html Msg
 view model =
-    case model.maybeMajorScalesAndKeys of
-        Just majorScalesAndKeys ->
+    case model.gameMode of
+        Just ChordGuesserGame ->
             Html.div []
-                [ Html.text "Chord exercise"
-                , Html.div [ HA.class "key-buttons-container" ]
-                    (List.map viewKeys majorScalesAndKeys)
-                , viewGameStarted model
+                [ Html.text "Chord guesser"
+                , viewKeysOrError model
+                , viewChordGuesserGame model
+                , viewGameOverMessage model
+                ]
+
+        Just ChordBuilderGame ->
+            Html.div []
+                [ Html.text "Chord builder"
+                , viewKeysOrError model
+                , viewChordBuilderGame model
+                , viewWinMessage model
+                , viewGameOverMessage model
                 ]
 
         Nothing ->
-            Html.div [] [ Html.text "Something went wrong" ]
+            Html.div []
+                [ Html.text "Please choose a game mode"
+                , Html.p []
+                    [ Html.button
+                        [ HE.onClick (GameModeChosen ChordGuesserGame)
+                        , HA.class "custom-button"
+                        ]
+                        [ Html.text "Chord guesser" ]
+                    , Html.br [] []
+                    , Html.button
+                        [ HE.onClick (GameModeChosen ChordBuilderGame)
+                        , HA.class "custom-button"
+                        ]
+                        [ Html.text "Chord builder" ]
+                    ]
+                ]
 
 
-viewGameStarted : Model -> Html Msg
-viewGameStarted model =
-    case model.chosenKeyAndScale of
-        Just chosenKeyAndScale ->
-            if not model.gameOver then
+viewWinMessage : Model -> Html Msg
+viewWinMessage model =
+    Html.div
+        [ HA.class "game-over-message-container"
+        , if not model.isBuiltCordCorrect then
+            HA.style "display" "none"
+
+          else
+            HA.style "display" ""
+        ]
+        [ Html.p [] [ Html.text "You win!" ]
+        , Html.p []
+            [ Html.button [ HE.onClick ResetChordBuilder, HA.class "custom-button" ] [ Html.text "Play again" ] ]
+        ]
+
+
+viewChordBuilderGame : Model -> Html Msg
+viewChordBuilderGame model =
+    Html.div []
+        [ case model.chosenKeyAndScale of
+            Just chosenKeyAndScale ->
                 Html.div []
-                    [ viewRandomizedChord model
+                    [ viewRandomizedChord model False
+                    , NoteBuilder.viewNotes AddToChordBuilderList model.allNotes chosenKeyAndScale.key
+                    , Html.p [ HA.class "user-built-notes-container" ]
+                        (List.reverse (List.map viewUserBuiltChord model.builtChord))
+                    , if model.builtChord == [] then
+                        Html.div [] []
+                      else
+                        Html.div [ HA.class "undo-button-container" ] [ Html.button [ HA.class "custom-button", HE.onClick Undo ] [ Html.text "Undo" ] ]
+                    , Html.button [ HA.class "custom-button", HE.onClick SubmitBuiltChord ] [ Html.text "Submit" ]
+                    ]
+
+            Nothing ->
+                Html.div [] [ Html.text "Please select a key" ]
+        , Html.button [ HA.class "custom-button", HE.onClick GoBack ] [ Html.text " <-- Go Back" ]
+        ]
+
+
+viewUserBuiltChord : String -> Html Msg
+viewUserBuiltChord note =
+    Html.div [] [ Html.text (note ++ " ") ]
+
+
+viewKeysOrError : Model -> Html Msg
+viewKeysOrError model =
+    case model.maybeMajorScalesAndKeys of
+        Just majorScalesAndKeys ->
+            Html.div [ HA.class "key-buttons-container" ]
+                (List.map viewKeys majorScalesAndKeys)
+
+        Nothing ->
+            Html.div [] [ Html.text "No keys found" ]
+
+
+viewChordGuesserGame : Model -> Html Msg
+viewChordGuesserGame model =
+    Html.div []
+        [ case model.chosenKeyAndScale of
+            Just chosenKeyAndScale ->
+                Html.div []
+                    [ viewRandomizedChord model True
                     , viewChords model chosenKeyAndScale
                     , Html.p [] [ Html.text <| "Score:  " ++ String.fromInt model.score ]
                     , Html.p [] [ Html.text <| "Mistakes:  " ++ String.fromInt model.mistakes ]
                     ]
 
-            else
-                viewGameOverMessage model
-
-        Nothing ->
-            Html.div [] [ Html.text "Please choose a key" ]
+            Nothing ->
+                Html.div [] [ Html.text "Please choose a key" ]
+        , Html.button [ HA.class "custom-button", HE.onClick GoBack ] [ Html.text " <-- Go Back" ]
+        ]
 
 
 viewKeys : TheoryApi.MajorScaleAndKey -> Html Msg
@@ -163,7 +290,7 @@ viewChords model chosenKeyAndScale =
     case model.maybeChords of
         Just chords ->
             Html.div [ HA.class "chords-container" ]
-                (List.map (viewChord chosenKeyAndScale) chords) 
+                (List.map (viewChord chosenKeyAndScale) chords)
 
         Nothing ->
             Html.div [] [ Html.text "No chords found" ]
@@ -176,11 +303,20 @@ viewChord chosenKeyAndScale chord =
         ]
 
 
-viewRandomizedChord : Model -> Html Msg
-viewRandomizedChord model =
+viewRandomizedChord : Model -> Bool -> Html Msg
+viewRandomizedChord model showNotes =
     case model.randomizedChord of
         Just randomizedChord ->
-            Html.p [] [ Html.text ("Which chord is this? " ++ chordConstructor randomizedChord model.chosenKeyAndScale) ]
+            if showNotes then
+                Html.p [] [ Html.text ("Which chord is this? " ++ chordConstructor randomizedChord model.chosenKeyAndScale) ]
+
+            else
+                case model.chosenKeyAndScale of
+                    Just chosenKeyAndScale ->
+                        Html.p [] [ Html.text ("Please build the " ++ chosenKeyAndScale.key ++ randomizedChord.name ++ " chord") ]
+
+                    Nothing ->
+                        Html.p [] []
 
         Nothing ->
             Html.p [] [ Html.text "No chord found" ]
@@ -198,7 +334,7 @@ viewGameOverMessage model =
         ]
         [ Html.p [] [ Html.text "You lose" ]
         , Html.p []
-            [ Html.button [ HE.onClick Reset, HA.class "custom-button" ] [ Html.text "Try again" ] ]
+            [ Html.button [ HE.onClick ResetChordGuesser, HA.class "custom-button" ] [ Html.text "Try again" ] ]
         ]
 
 
@@ -274,3 +410,34 @@ checkIfChordIsCorrect model =
 
         _ ->
             ( model, Cmd.none )
+
+
+checkIfBuiltCorrectHelper : Model -> Bool
+checkIfBuiltCorrectHelper model =
+    case model.randomizedChord of
+        Just randomizedChord ->
+            let
+                constructedRandomizedChordList =
+                    String.split " " (chordConstructor randomizedChord model.chosenKeyAndScale)
+            in
+            constructedRandomizedChordList == List.reverse model.builtChord
+
+        Nothing ->
+            False
+
+
+checkIfChordBuiltCorrect : Model -> ( Model, Cmd Msg )
+checkIfChordBuiltCorrect model =
+    if checkIfBuiltCorrectHelper model then
+        let
+            _ =
+                Debug.log "" "Win!"
+        in
+        ( { model | isBuiltCordCorrect = True }, randomizeChord )
+
+    else
+        let
+            _ =
+                Debug.log "" "lose!"
+        in
+        ( { model | gameOver = True }, Cmd.none )

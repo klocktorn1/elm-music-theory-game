@@ -1,9 +1,12 @@
-module Games.NoteBuilder exposing (..)
+module Games.NoteBuilder exposing (viewNotes)
 
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import List.Extra as ListExtra
+
+
+
 
 
 viewNotes : (String -> msg) -> Maybe (List String) -> String -> Html msg
