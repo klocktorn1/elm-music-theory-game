@@ -13553,6 +13553,9 @@ var $author$project$Games$ModeExercise$viewKeysOrError = function (model) {
 		}
 	}
 };
+var $author$project$Games$ModeExercise$AddToModeBuilderList = function (a) {
+	return {$: 'AddToModeBuilderList', a: a};
+};
 var $author$project$Games$ModeExercise$SubmitBuiltMode = {$: 'SubmitBuiltMode'};
 var $author$project$Games$ModeExercise$Undo = {$: 'Undo'};
 var $elm_community$list_extra$List$Extra$findIndexHelp = F3(
@@ -13711,7 +13714,7 @@ var $elm_community$list_extra$List$Extra$splitAt = F2(
 			A2($elm$core$List$take, n, xs),
 			A2($elm$core$List$drop, n, xs));
 	});
-var $author$project$Games$ModeExercise$rotateList = F2(
+var $author$project$Games$NoteBuilder$rotateList = F2(
 	function (note, allNotes) {
 		var _v0 = A2(
 			$elm_community$list_extra$List$Extra$findIndex,
@@ -13729,24 +13732,22 @@ var $author$project$Games$ModeExercise$rotateList = F2(
 			return _List_Nil;
 		}
 	});
-var $author$project$Games$ModeExercise$AddToModeBuilderList = function (a) {
-	return {$: 'AddToModeBuilderList', a: a};
-};
-var $author$project$Games$ModeExercise$viewNoteButtons = function (note) {
-	return A2(
-		$elm$html$Html$button,
-		_List_fromArray(
-			[
-				$elm$html$Html$Attributes$class('custom-button'),
-				$elm$html$Html$Events$onClick(
-				$author$project$Games$ModeExercise$AddToModeBuilderList(note))
-			]),
-		_List_fromArray(
-			[
-				$elm$html$Html$text(note)
-			]));
-};
-var $author$project$Games$ModeExercise$viewNotesWithFlats = function (allNotes) {
+var $author$project$Games$NoteBuilder$viewNoteButtons = F2(
+	function (toMsg, note) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('custom-button'),
+					$elm$html$Html$Events$onClick(
+					toMsg(note))
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(note)
+				]));
+	});
+var $author$project$Games$NoteBuilder$viewNotesWithFlats = function (allNotes) {
 	return A2(
 		$elm$core$List$filter,
 		function (note) {
@@ -13754,7 +13755,7 @@ var $author$project$Games$ModeExercise$viewNotesWithFlats = function (allNotes) 
 		},
 		allNotes);
 };
-var $author$project$Games$ModeExercise$viewNotesWithSharps = function (allNotes) {
+var $author$project$Games$NoteBuilder$viewNotesWithSharps = function (allNotes) {
 	return A2(
 		$elm$core$List$filter,
 		function (note) {
@@ -13762,7 +13763,7 @@ var $author$project$Games$ModeExercise$viewNotesWithSharps = function (allNotes)
 		},
 		allNotes);
 };
-var $author$project$Games$ModeExercise$viewNotesWithoutAccidentals = function (allNotes) {
+var $author$project$Games$NoteBuilder$viewNotesWithoutAccidentals = function (allNotes) {
 	return A2(
 		$elm$core$List$filter,
 		function (note) {
@@ -13770,11 +13771,10 @@ var $author$project$Games$ModeExercise$viewNotesWithoutAccidentals = function (a
 		},
 		allNotes);
 };
-var $author$project$Games$ModeExercise$viewNotes = F2(
-	function (model, chosenKey) {
-		var _v0 = model.allNotes;
-		if (_v0.$ === 'Just') {
-			var allNotes = _v0.a;
+var $author$project$Games$NoteBuilder$viewNotes = F3(
+	function (toMsg, maybeAllNotes, chosenKey) {
+		if (maybeAllNotes.$ === 'Just') {
+			var allNotes = maybeAllNotes.a;
 			return A2(
 				$elm$html$Html$div,
 				_List_Nil,
@@ -13788,9 +13788,9 @@ var $author$project$Games$ModeExercise$viewNotes = F2(
 							]),
 						A2(
 							$elm$core$List$map,
-							$author$project$Games$ModeExercise$viewNoteButtons,
-							$author$project$Games$ModeExercise$viewNotesWithSharps(
-								A2($author$project$Games$ModeExercise$rotateList, chosenKey, allNotes)))),
+							$author$project$Games$NoteBuilder$viewNoteButtons(toMsg),
+							$author$project$Games$NoteBuilder$viewNotesWithSharps(
+								A2($author$project$Games$NoteBuilder$rotateList, chosenKey, allNotes)))),
 						A2(
 						$elm$html$Html$div,
 						_List_fromArray(
@@ -13799,9 +13799,9 @@ var $author$project$Games$ModeExercise$viewNotes = F2(
 							]),
 						A2(
 							$elm$core$List$map,
-							$author$project$Games$ModeExercise$viewNoteButtons,
-							$author$project$Games$ModeExercise$viewNotesWithoutAccidentals(
-								A2($author$project$Games$ModeExercise$rotateList, chosenKey, allNotes)))),
+							$author$project$Games$NoteBuilder$viewNoteButtons(toMsg),
+							$author$project$Games$NoteBuilder$viewNotesWithoutAccidentals(
+								A2($author$project$Games$NoteBuilder$rotateList, chosenKey, allNotes)))),
 						A2(
 						$elm$html$Html$div,
 						_List_fromArray(
@@ -13810,9 +13810,9 @@ var $author$project$Games$ModeExercise$viewNotes = F2(
 							]),
 						A2(
 							$elm$core$List$map,
-							$author$project$Games$ModeExercise$viewNoteButtons,
-							$author$project$Games$ModeExercise$viewNotesWithFlats(
-								A2($author$project$Games$ModeExercise$rotateList, chosenKey, allNotes))))
+							$author$project$Games$NoteBuilder$viewNoteButtons(toMsg),
+							$author$project$Games$NoteBuilder$viewNotesWithFlats(
+								A2($author$project$Games$NoteBuilder$rotateList, chosenKey, allNotes))))
 					]));
 		} else {
 			return A2(
@@ -13849,7 +13849,7 @@ var $author$project$Games$ModeExercise$viewModeBuilderGame = function (model) {
 						[
 							$elm$html$Html$text('Please build the ' + (chosenKey.key + (' ' + (model.randomizedMode.mode + ' mode'))))
 						])),
-					A2($author$project$Games$ModeExercise$viewNotes, model, chosenKey.key),
+					A3($author$project$Games$NoteBuilder$viewNotes, $author$project$Games$ModeExercise$AddToModeBuilderList, model.allNotes, chosenKey.key),
 					A2(
 					$elm$html$Html$p,
 					_List_fromArray(

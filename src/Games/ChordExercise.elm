@@ -35,6 +35,11 @@ type Msg
 type alias Flags =
     String
 
+type GameMode
+    = ChordGuesserGame
+    | ChordBuilderGame
+
+
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
