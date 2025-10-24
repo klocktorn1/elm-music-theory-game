@@ -11185,6 +11185,7 @@ var $elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
 var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
+var $author$project$Games$Stopwatch$init = {running: false, stopwatchInMs: 0};
 var $author$project$Games$NoteExercise$init = function (flags) {
 	return _Utils_Tuple2(
 		{
@@ -11204,6 +11205,8 @@ var $author$project$Games$NoteExercise$init = function (flags) {
 			numberOfWrongs: 0,
 			result: $elm$core$Maybe$Nothing,
 			score: 0,
+			showStopwatch: false,
+			stopwatch: $author$project$Games$Stopwatch$init,
 			userWins: false,
 			wrongPair: $elm$core$Maybe$Nothing
 		},
@@ -11474,6 +11477,7 @@ var $author$project$Main$routeParser = $elm$url$Url$Parser$oneOf(
 		]));
 var $author$project$Main$init = F3(
 	function (flags, url, key) {
+		var stopwatchModel = $author$project$Games$Stopwatch$init;
 		var route = A2(
 			$elm$core$Maybe$withDefault,
 			$author$project$Main$NotFound,
@@ -11491,7 +11495,7 @@ var $author$project$Main$init = F3(
 		var chordExerciseModel = _v3.a;
 		var chordExerciseCmd = _v3.b;
 		return _Utils_Tuple2(
-			{chordExerciseModel: chordExerciseModel, fretboardGameModel: fretboardGameModel, isOnFretboardPage: false, key: key, modeExerciseModel: modeExerciseModel, noteExerciseModel: noteExerciseModel, route: route, running: false, test: 1, theoryDb: $krisajenkins$remotedata$RemoteData$Loading, timerInMs: 0, url: url},
+			{chordExerciseModel: chordExerciseModel, fretboardGameModel: fretboardGameModel, isOnFretboardPage: false, key: key, modeExerciseModel: modeExerciseModel, noteExerciseModel: noteExerciseModel, route: route, stopwatchModel: stopwatchModel, theoryDb: $krisajenkins$remotedata$RemoteData$Loading, url: url},
 			$elm$core$Platform$Cmd$batch(
 				_List_fromArray(
 					[
@@ -11502,189 +11506,10 @@ var $author$project$Main$init = F3(
 						$author$project$Games$TheoryApi$fetchTheoryDb($author$project$Main$GotTheoryDb)
 					])));
 	});
-var $author$project$Main$Tick = function (a) {
-	return {$: 'Tick', a: a};
+var $author$project$Main$StopwatchMsg = function (a) {
+	return {$: 'StopwatchMsg', a: a};
 };
 var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$time$Time$Every = F2(
-	function (a, b) {
-		return {$: 'Every', a: a, b: b};
-	});
-var $elm$time$Time$State = F2(
-	function (taggers, processes) {
-		return {processes: processes, taggers: taggers};
-	});
-var $elm$time$Time$init = $elm$core$Task$succeed(
-	A2($elm$time$Time$State, $elm$core$Dict$empty, $elm$core$Dict$empty));
-var $elm$time$Time$addMySub = F2(
-	function (_v0, state) {
-		var interval = _v0.a;
-		var tagger = _v0.b;
-		var _v1 = A2($elm$core$Dict$get, interval, state);
-		if (_v1.$ === 'Nothing') {
-			return A3(
-				$elm$core$Dict$insert,
-				interval,
-				_List_fromArray(
-					[tagger]),
-				state);
-		} else {
-			var taggers = _v1.a;
-			return A3(
-				$elm$core$Dict$insert,
-				interval,
-				A2($elm$core$List$cons, tagger, taggers),
-				state);
-		}
-	});
-var $elm$time$Time$Name = function (a) {
-	return {$: 'Name', a: a};
-};
-var $elm$time$Time$Offset = function (a) {
-	return {$: 'Offset', a: a};
-};
-var $elm$time$Time$Zone = F2(
-	function (a, b) {
-		return {$: 'Zone', a: a, b: b};
-	});
-var $elm$time$Time$customZone = $elm$time$Time$Zone;
-var $elm$time$Time$setInterval = _Time_setInterval;
-var $elm$time$Time$spawnHelp = F3(
-	function (router, intervals, processes) {
-		if (!intervals.b) {
-			return $elm$core$Task$succeed(processes);
-		} else {
-			var interval = intervals.a;
-			var rest = intervals.b;
-			var spawnTimer = $elm$core$Process$spawn(
-				A2(
-					$elm$time$Time$setInterval,
-					interval,
-					A2($elm$core$Platform$sendToSelf, router, interval)));
-			var spawnRest = function (id) {
-				return A3(
-					$elm$time$Time$spawnHelp,
-					router,
-					rest,
-					A3($elm$core$Dict$insert, interval, id, processes));
-			};
-			return A2($elm$core$Task$andThen, spawnRest, spawnTimer);
-		}
-	});
-var $elm$time$Time$onEffects = F3(
-	function (router, subs, _v0) {
-		var processes = _v0.processes;
-		var rightStep = F3(
-			function (_v6, id, _v7) {
-				var spawns = _v7.a;
-				var existing = _v7.b;
-				var kills = _v7.c;
-				return _Utils_Tuple3(
-					spawns,
-					existing,
-					A2(
-						$elm$core$Task$andThen,
-						function (_v5) {
-							return kills;
-						},
-						$elm$core$Process$kill(id)));
-			});
-		var newTaggers = A3($elm$core$List$foldl, $elm$time$Time$addMySub, $elm$core$Dict$empty, subs);
-		var leftStep = F3(
-			function (interval, taggers, _v4) {
-				var spawns = _v4.a;
-				var existing = _v4.b;
-				var kills = _v4.c;
-				return _Utils_Tuple3(
-					A2($elm$core$List$cons, interval, spawns),
-					existing,
-					kills);
-			});
-		var bothStep = F4(
-			function (interval, taggers, id, _v3) {
-				var spawns = _v3.a;
-				var existing = _v3.b;
-				var kills = _v3.c;
-				return _Utils_Tuple3(
-					spawns,
-					A3($elm$core$Dict$insert, interval, id, existing),
-					kills);
-			});
-		var _v1 = A6(
-			$elm$core$Dict$merge,
-			leftStep,
-			bothStep,
-			rightStep,
-			newTaggers,
-			processes,
-			_Utils_Tuple3(
-				_List_Nil,
-				$elm$core$Dict$empty,
-				$elm$core$Task$succeed(_Utils_Tuple0)));
-		var spawnList = _v1.a;
-		var existingDict = _v1.b;
-		var killTask = _v1.c;
-		return A2(
-			$elm$core$Task$andThen,
-			function (newProcesses) {
-				return $elm$core$Task$succeed(
-					A2($elm$time$Time$State, newTaggers, newProcesses));
-			},
-			A2(
-				$elm$core$Task$andThen,
-				function (_v2) {
-					return A3($elm$time$Time$spawnHelp, router, spawnList, existingDict);
-				},
-				killTask));
-	});
-var $elm$time$Time$Posix = function (a) {
-	return {$: 'Posix', a: a};
-};
-var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
-var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
-var $elm$time$Time$onSelfMsg = F3(
-	function (router, interval, state) {
-		var _v0 = A2($elm$core$Dict$get, interval, state.taggers);
-		if (_v0.$ === 'Nothing') {
-			return $elm$core$Task$succeed(state);
-		} else {
-			var taggers = _v0.a;
-			var tellTaggers = function (time) {
-				return $elm$core$Task$sequence(
-					A2(
-						$elm$core$List$map,
-						function (tagger) {
-							return A2(
-								$elm$core$Platform$sendToApp,
-								router,
-								tagger(time));
-						},
-						taggers));
-			};
-			return A2(
-				$elm$core$Task$andThen,
-				function (_v1) {
-					return $elm$core$Task$succeed(state);
-				},
-				A2($elm$core$Task$andThen, tellTaggers, $elm$time$Time$now));
-		}
-	});
-var $elm$time$Time$subMap = F2(
-	function (f, _v0) {
-		var interval = _v0.a;
-		var tagger = _v0.b;
-		return A2(
-			$elm$time$Time$Every,
-			interval,
-			A2($elm$core$Basics$composeL, f, tagger));
-	});
-_Platform_effectManagers['Time'] = _Platform_createManager($elm$time$Time$init, $elm$time$Time$onEffects, $elm$time$Time$onSelfMsg, 0, $elm$time$Time$subMap);
-var $elm$time$Time$subscription = _Platform_leaf('Time');
-var $elm$time$Time$every = F2(
-	function (interval, tagger) {
-		return $elm$time$Time$subscription(
-			A2($elm$time$Time$Every, interval, tagger));
-	});
 var $author$project$Games$FretboardGame$KeyDown = function (a) {
 	return {$: 'KeyDown', a: a};
 };
@@ -11753,6 +11578,10 @@ var $elm$browser$Browser$AnimationManager$onEffects = F3(
 			}
 		}
 	});
+var $elm$time$Time$Posix = function (a) {
+	return {$: 'Posix', a: a};
+};
+var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
 var $elm$browser$Browser$AnimationManager$onSelfMsg = F3(
 	function (router, newTime, _v0) {
 		var subs = _v0.subs;
@@ -12008,22 +11837,213 @@ var $author$project$Games$FretboardGame$subscriptions = function (model) {
 				A2($elm$json$Json$Decode$map, $author$project$Games$FretboardGame$KeyUp, $author$project$Games$FretboardGame$keyDecoder))
 			]));
 };
+var $author$project$Games$NoteExercise$StopwatchMsg = function (a) {
+	return {$: 'StopwatchMsg', a: a};
+};
+var $author$project$Games$Stopwatch$Tick = function (a) {
+	return {$: 'Tick', a: a};
+};
+var $elm$time$Time$Every = F2(
+	function (a, b) {
+		return {$: 'Every', a: a, b: b};
+	});
+var $elm$time$Time$State = F2(
+	function (taggers, processes) {
+		return {processes: processes, taggers: taggers};
+	});
+var $elm$time$Time$init = $elm$core$Task$succeed(
+	A2($elm$time$Time$State, $elm$core$Dict$empty, $elm$core$Dict$empty));
+var $elm$time$Time$addMySub = F2(
+	function (_v0, state) {
+		var interval = _v0.a;
+		var tagger = _v0.b;
+		var _v1 = A2($elm$core$Dict$get, interval, state);
+		if (_v1.$ === 'Nothing') {
+			return A3(
+				$elm$core$Dict$insert,
+				interval,
+				_List_fromArray(
+					[tagger]),
+				state);
+		} else {
+			var taggers = _v1.a;
+			return A3(
+				$elm$core$Dict$insert,
+				interval,
+				A2($elm$core$List$cons, tagger, taggers),
+				state);
+		}
+	});
+var $elm$time$Time$Name = function (a) {
+	return {$: 'Name', a: a};
+};
+var $elm$time$Time$Offset = function (a) {
+	return {$: 'Offset', a: a};
+};
+var $elm$time$Time$Zone = F2(
+	function (a, b) {
+		return {$: 'Zone', a: a, b: b};
+	});
+var $elm$time$Time$customZone = $elm$time$Time$Zone;
+var $elm$time$Time$setInterval = _Time_setInterval;
+var $elm$time$Time$spawnHelp = F3(
+	function (router, intervals, processes) {
+		if (!intervals.b) {
+			return $elm$core$Task$succeed(processes);
+		} else {
+			var interval = intervals.a;
+			var rest = intervals.b;
+			var spawnTimer = $elm$core$Process$spawn(
+				A2(
+					$elm$time$Time$setInterval,
+					interval,
+					A2($elm$core$Platform$sendToSelf, router, interval)));
+			var spawnRest = function (id) {
+				return A3(
+					$elm$time$Time$spawnHelp,
+					router,
+					rest,
+					A3($elm$core$Dict$insert, interval, id, processes));
+			};
+			return A2($elm$core$Task$andThen, spawnRest, spawnTimer);
+		}
+	});
+var $elm$time$Time$onEffects = F3(
+	function (router, subs, _v0) {
+		var processes = _v0.processes;
+		var rightStep = F3(
+			function (_v6, id, _v7) {
+				var spawns = _v7.a;
+				var existing = _v7.b;
+				var kills = _v7.c;
+				return _Utils_Tuple3(
+					spawns,
+					existing,
+					A2(
+						$elm$core$Task$andThen,
+						function (_v5) {
+							return kills;
+						},
+						$elm$core$Process$kill(id)));
+			});
+		var newTaggers = A3($elm$core$List$foldl, $elm$time$Time$addMySub, $elm$core$Dict$empty, subs);
+		var leftStep = F3(
+			function (interval, taggers, _v4) {
+				var spawns = _v4.a;
+				var existing = _v4.b;
+				var kills = _v4.c;
+				return _Utils_Tuple3(
+					A2($elm$core$List$cons, interval, spawns),
+					existing,
+					kills);
+			});
+		var bothStep = F4(
+			function (interval, taggers, id, _v3) {
+				var spawns = _v3.a;
+				var existing = _v3.b;
+				var kills = _v3.c;
+				return _Utils_Tuple3(
+					spawns,
+					A3($elm$core$Dict$insert, interval, id, existing),
+					kills);
+			});
+		var _v1 = A6(
+			$elm$core$Dict$merge,
+			leftStep,
+			bothStep,
+			rightStep,
+			newTaggers,
+			processes,
+			_Utils_Tuple3(
+				_List_Nil,
+				$elm$core$Dict$empty,
+				$elm$core$Task$succeed(_Utils_Tuple0)));
+		var spawnList = _v1.a;
+		var existingDict = _v1.b;
+		var killTask = _v1.c;
+		return A2(
+			$elm$core$Task$andThen,
+			function (newProcesses) {
+				return $elm$core$Task$succeed(
+					A2($elm$time$Time$State, newTaggers, newProcesses));
+			},
+			A2(
+				$elm$core$Task$andThen,
+				function (_v2) {
+					return A3($elm$time$Time$spawnHelp, router, spawnList, existingDict);
+				},
+				killTask));
+	});
+var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
+var $elm$time$Time$onSelfMsg = F3(
+	function (router, interval, state) {
+		var _v0 = A2($elm$core$Dict$get, interval, state.taggers);
+		if (_v0.$ === 'Nothing') {
+			return $elm$core$Task$succeed(state);
+		} else {
+			var taggers = _v0.a;
+			var tellTaggers = function (time) {
+				return $elm$core$Task$sequence(
+					A2(
+						$elm$core$List$map,
+						function (tagger) {
+							return A2(
+								$elm$core$Platform$sendToApp,
+								router,
+								tagger(time));
+						},
+						taggers));
+			};
+			return A2(
+				$elm$core$Task$andThen,
+				function (_v1) {
+					return $elm$core$Task$succeed(state);
+				},
+				A2($elm$core$Task$andThen, tellTaggers, $elm$time$Time$now));
+		}
+	});
+var $elm$time$Time$subMap = F2(
+	function (f, _v0) {
+		var interval = _v0.a;
+		var tagger = _v0.b;
+		return A2(
+			$elm$time$Time$Every,
+			interval,
+			A2($elm$core$Basics$composeL, f, tagger));
+	});
+_Platform_effectManagers['Time'] = _Platform_createManager($elm$time$Time$init, $elm$time$Time$onEffects, $elm$time$Time$onSelfMsg, 0, $elm$time$Time$subMap);
+var $elm$time$Time$subscription = _Platform_leaf('Time');
+var $elm$time$Time$every = F2(
+	function (interval, tagger) {
+		return $elm$time$Time$subscription(
+			A2($elm$time$Time$Every, interval, tagger));
+	});
+var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $author$project$Games$Stopwatch$subscriptions = function (model) {
+	return model.running ? A2($elm$time$Time$every, 10, $author$project$Games$Stopwatch$Tick) : $elm$core$Platform$Sub$none;
+};
+var $author$project$Games$NoteExercise$subscriptions = function (model) {
+	return A2(
+		$elm$core$Platform$Sub$map,
+		$author$project$Games$NoteExercise$StopwatchMsg,
+		$author$project$Games$Stopwatch$subscriptions(model.stopwatch));
+};
 var $author$project$Main$subscriptions = function (model) {
-	return model.running ? $elm$core$Platform$Sub$batch(
+	return $elm$core$Platform$Sub$batch(
 		_List_fromArray(
 			[
 				A2(
 				$elm$core$Platform$Sub$map,
 				$author$project$Main$FretboardGameMsg,
 				$author$project$Games$FretboardGame$subscriptions(model.fretboardGameModel)),
-				A2($elm$time$Time$every, 10, $author$project$Main$Tick)
-			])) : $elm$core$Platform$Sub$batch(
-		_List_fromArray(
-			[
 				A2(
 				$elm$core$Platform$Sub$map,
-				$author$project$Main$FretboardGameMsg,
-				$author$project$Games$FretboardGame$subscriptions(model.fretboardGameModel))
+				$author$project$Main$StopwatchMsg,
+				$author$project$Games$Stopwatch$subscriptions(model.stopwatchModel)),
+				A2(
+				$elm$core$Platform$Sub$map,
+				$author$project$Main$NoteExerciseMsg,
+				$author$project$Games$NoteExercise$subscriptions(model.noteExerciseModel))
 			]));
 };
 var $author$project$Games$ChordExercise$GotTheoryDb = function (a) {
@@ -12999,6 +13019,29 @@ var $elm_community$random_extra$Random$List$shuffle = function (list) {
 		},
 		$elm$random$Random$independentSeed);
 };
+var $author$project$Games$Stopwatch$update = F2(
+	function (msg, model) {
+		switch (msg.$) {
+			case 'Tick':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{stopwatchInMs: model.stopwatchInMs + 100}),
+					$elm$core$Platform$Cmd$none);
+			case 'Start':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{running: true, stopwatchInMs: model.stopwatchInMs + 10000}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{running: false}),
+					$elm$core$Platform$Cmd$none);
+		}
+	});
 var $author$project$Games$NoteExercise$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -13060,7 +13103,7 @@ var $author$project$Games$NoteExercise$update = F2(
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
-			case 'ChooseKey':
+			case 'KeyChosen':
 				var scale = msg.a;
 				var newModel = _Utils_Tuple2(
 					_Utils_update(
@@ -13073,6 +13116,7 @@ var $author$project$Games$NoteExercise$update = F2(
 							numberIndex: 7,
 							numberOfWrongs: 0,
 							score: 0,
+							showStopwatch: true,
 							wrongPair: $elm$core$Maybe$Nothing
 						}),
 					A2(
@@ -13080,7 +13124,7 @@ var $author$project$Games$NoteExercise$update = F2(
 						$author$project$Games$NoteExercise$Shuffled,
 						$elm_community$random_extra$Random$List$shuffle(scale.notes)));
 				return newModel;
-			default:
+			case 'Reset':
 				var shuffle = msg.a;
 				var _v4 = model.maybeChosenScale;
 				if (_v4.$ === 'Just') {
@@ -13106,6 +13150,16 @@ var $author$project$Games$NoteExercise$update = F2(
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
+			default:
+				var subMsg = msg.a;
+				var _v5 = A2($author$project$Games$Stopwatch$update, subMsg, model.stopwatch);
+				var updatedStopwatch = _v5.a;
+				var cmd = _v5.b;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{stopwatch: updatedStopwatch}),
+					A2($elm$core$Platform$Cmd$map, $author$project$Games$NoteExercise$StopwatchMsg, cmd));
 		}
 	});
 var $author$project$Main$update = F2(
@@ -13182,27 +13236,37 @@ var $author$project$Main$update = F2(
 						model,
 						{fretboardGameModel: updatedGameModel}),
 					A2($elm$core$Platform$Cmd$map, $author$project$Main$FretboardGameMsg, cmd));
-			case 'GotTheoryDb':
+			case 'StopwatchMsg':
+				var subMsg = msg.a;
+				var _v7 = A2($author$project$Games$Stopwatch$update, subMsg, model.stopwatchModel);
+				var updatedStopwatch = _v7.a;
+				var cmd = _v7.b;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{stopwatchModel: updatedStopwatch}),
+					A2($elm$core$Platform$Cmd$map, $author$project$Main$StopwatchMsg, cmd));
+			default:
 				if (msg.a.$ === 'Ok') {
 					var db = msg.a.a;
-					var _v7 = A2(
+					var _v8 = A2(
 						$author$project$Games$NoteExercise$update,
 						$author$project$Games$NoteExercise$GotTheoryDb(db),
 						model.noteExerciseModel);
-					var updatedNoteModel = _v7.a;
-					var noteCmd = _v7.b;
-					var _v8 = A2(
+					var updatedNoteModel = _v8.a;
+					var noteCmd = _v8.b;
+					var _v9 = A2(
 						$author$project$Games$ModeExercise$update,
 						$author$project$Games$ModeExercise$GotTheoryDb(db),
 						model.modeExerciseModel);
-					var updatedModeModel = _v8.a;
-					var modeCmd = _v8.b;
-					var _v9 = A2(
+					var updatedModeModel = _v9.a;
+					var modeCmd = _v9.b;
+					var _v10 = A2(
 						$author$project$Games$ChordExercise$update,
 						$author$project$Games$ChordExercise$GotTheoryDb(db),
 						model.chordExerciseModel);
-					var updatedChordModel = _v9.a;
-					var chordCmd = _v9.b;
+					var updatedChordModel = _v10.a;
+					var chordCmd = _v10.b;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
@@ -13223,28 +13287,8 @@ var $author$project$Main$update = F2(
 					var error = msg.a.a;
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
-			case 'Tick':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{timerInMs: model.timerInMs + 100}),
-					$elm$core$Platform$Cmd$none);
-			case 'Start':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{running: true, timerInMs: model.timerInMs + 10000}),
-					$elm$core$Platform$Cmd$none);
-			default:
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{running: false}),
-					$elm$core$Platform$Cmd$none);
 		}
 	});
-var $author$project$Main$Start = {$: 'Start'};
-var $author$project$Main$Stop = {$: 'Stop'};
 var $elm$html$Html$main_ = _VirtualDom_node('main');
 var $elm$html$Html$footer = _VirtualDom_node('footer');
 var $author$project$Main$viewFooter = A2(
@@ -14693,6 +14737,52 @@ var $author$project$Games$ModeExercise$view = function (model) {
 var $author$project$Games$NoteExercise$Reset = function (a) {
 	return {$: 'Reset', a: a};
 };
+var $author$project$Games$Stopwatch$Start = {$: 'Start'};
+var $author$project$Games$Stopwatch$Stop = {$: 'Stop'};
+var $author$project$Games$Stopwatch$splitAt = F2(
+	function (index, str) {
+		var _v0 = _Utils_Tuple2(
+			A2($elm$core$String$left, index, str),
+			A2($elm$core$String$dropLeft, index, str));
+		var leftSide = _v0.a;
+		var rightSide = _v0.b;
+		return leftSide + ('.' + rightSide);
+	});
+var $author$project$Games$Stopwatch$view = function (model) {
+	var stopwatchInMsSplit = (!model.stopwatchInMs) ? A2(
+		$author$project$Games$Stopwatch$splitAt,
+		1,
+		$elm$core$String$fromFloat(model.stopwatchInMs / 100) + '00') : A2(
+		$author$project$Games$Stopwatch$splitAt,
+		1,
+		$elm$core$String$fromFloat(model.stopwatchInMs / 100));
+	return A2(
+		$elm$html$Html$div,
+		_List_Nil,
+		_List_fromArray(
+			[
+				$elm$html$Html$text(stopwatchInMsSplit),
+				(!model.running) ? A2(
+				$elm$html$Html$button,
+				_List_fromArray(
+					[
+						$elm$html$Html$Events$onClick($author$project$Games$Stopwatch$Start)
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Start')
+					])) : A2(
+				$elm$html$Html$button,
+				_List_fromArray(
+					[
+						$elm$html$Html$Events$onClick($author$project$Games$Stopwatch$Stop)
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Stop')
+					]))
+			]));
+};
 var $author$project$Games$NoteExercise$viewGameOverOrWinMessage = function (model) {
 	var _v0 = model.result;
 	if (_v0.$ === 'Just') {
@@ -14775,8 +14865,8 @@ var $author$project$Games$NoteExercise$viewGameOverOrWinMessage = function (mode
 		return A2($elm$html$Html$div, _List_Nil, _List_Nil);
 	}
 };
-var $author$project$Games$NoteExercise$ChooseKey = function (a) {
-	return {$: 'ChooseKey', a: a};
+var $author$project$Games$NoteExercise$KeyChosen = function (a) {
+	return {$: 'KeyChosen', a: a};
 };
 var $author$project$Games$NoteExercise$viewKeyButtons = function (key) {
 	return A2(
@@ -14785,7 +14875,7 @@ var $author$project$Games$NoteExercise$viewKeyButtons = function (key) {
 			[
 				$elm$html$Html$Attributes$class('custom-button'),
 				$elm$html$Html$Events$onClick(
-				$author$project$Games$NoteExercise$ChooseKey(key))
+				$author$project$Games$NoteExercise$KeyChosen(key))
 			]),
 		_List_fromArray(
 			[
@@ -14988,6 +15078,10 @@ var $author$project$Games$NoteExercise$view = function (model) {
 					])),
 				$elm$html$Html$text('Pick a key. Match the note with the corresponding number in that scale (C1 D2 E3 F4 G5 A6 B7 in C for example)'),
 				$author$project$Games$NoteExercise$viewKeysOrError(model),
+				A2(
+				$elm$html$Html$map,
+				$author$project$Games$NoteExercise$StopwatchMsg,
+				$author$project$Games$Stopwatch$view(model.stopwatch)),
 				function () {
 				var _v0 = model.maybeChosenScale;
 				if (_v0.$ === 'Just') {
@@ -15111,30 +15205,37 @@ var $author$project$Main$viewRoute = function (model) {
 					]));
 		case 'Game':
 			var gameName = _v0.a;
-			switch (gameName) {
-				case 'note-exercise':
-					return A2(
-						$elm$html$Html$map,
-						$author$project$Main$NoteExerciseMsg,
-						$author$project$Games$NoteExercise$view(model.noteExerciseModel));
-				case 'mode-exercise':
-					return A2(
-						$elm$html$Html$map,
-						$author$project$Main$ModeExerciseMsg,
-						$author$project$Games$ModeExercise$view(model.modeExerciseModel));
-				case 'chord-exercise':
-					return A2(
-						$elm$html$Html$map,
-						$author$project$Main$ChordExerciseMsg,
-						$author$project$Games$ChordExercise$view(model.chordExerciseModel));
-				case 'fretboard-game':
-					return A2(
-						$elm$html$Html$map,
-						$author$project$Main$FretboardGameMsg,
-						$author$project$Games$FretboardGame$view(model.fretboardGameModel));
-				default:
-					return $elm$html$Html$text('Unknown game: ' + gameName);
-			}
+			var gameView = function () {
+				switch (gameName) {
+					case 'note-exercise':
+						return A2(
+							$elm$html$Html$map,
+							$author$project$Main$NoteExerciseMsg,
+							$author$project$Games$NoteExercise$view(model.noteExerciseModel));
+					case 'mode-exercise':
+						return A2(
+							$elm$html$Html$map,
+							$author$project$Main$ModeExerciseMsg,
+							$author$project$Games$ModeExercise$view(model.modeExerciseModel));
+					case 'chord-exercise':
+						return A2(
+							$elm$html$Html$map,
+							$author$project$Main$ChordExerciseMsg,
+							$author$project$Games$ChordExercise$view(model.chordExerciseModel));
+					case 'fretboard-game':
+						return A2(
+							$elm$html$Html$map,
+							$author$project$Main$FretboardGameMsg,
+							$author$project$Games$FretboardGame$view(model.fretboardGameModel));
+					default:
+						return $elm$html$Html$text('Unknown game: ' + gameName);
+				}
+			}();
+			return A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				_List_fromArray(
+					[gameView]));
 		default:
 			return A2(
 				$elm$html$Html$div,
@@ -15169,27 +15270,6 @@ var $author$project$Main$view = function (model) {
 				_List_fromArray(
 					[
 						$author$project$Main$viewHeader(model.url.path),
-						$elm$html$Html$text(
-						$elm$core$String$fromFloat(model.timerInMs / 100)),
-						(!model.running) ? A2(
-						$elm$html$Html$button,
-						_List_fromArray(
-							[
-								$elm$html$Html$Events$onClick($author$project$Main$Start)
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Start')
-							])) : A2(
-						$elm$html$Html$button,
-						_List_fromArray(
-							[
-								$elm$html$Html$Events$onClick($author$project$Main$Stop)
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Stop')
-							])),
 						A2(
 						$elm$html$Html$main_,
 						_List_fromArray(
@@ -15208,4 +15288,4 @@ var $author$project$Main$view = function (model) {
 };
 var $author$project$Main$main = $elm$browser$Browser$application(
 	{init: $author$project$Main$init, onUrlChange: $author$project$Main$UrlChanged, onUrlRequest: $author$project$Main$LinkClicked, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
-_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"FretboardGameMsg":["Games.FretboardGame.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"],"Tick":["Time.Posix"],"Start":[],"Stop":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"KeyAndScaleChosen":["Games.TheoryApi.MajorScaleAndKey"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"RandomChordPicked":["Basics.Int"],"ChordChosen":["Games.TheoryApi.Chord"],"GameModeChosen":["Games.ChordExercise.GameMode"],"AddToChordBuilderList":["String.String"],"SubmitBuiltChord":[],"ResetChordGuesser":[],"ResetChordBuilder":[],"GoBack":[],"Undo":[]}},"Games.FretboardGame.Msg":{"args":[],"tags":{"KeyDown":["String.String"],"KeyUp":["String.String"],"Tick":["Time.Posix"],"SetIsOnPage":["Basics.Bool"]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"Reset":["Basics.Bool"]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ChordExercise.GameMode":{"args":[],"tags":{"ChordGuesserGame":[],"ChordBuilderGame":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{"Games.TheoryApi.Chord":{"args":[],"type":"{ name : String.String, formula : List.List String.String }"},"Games.TheoryApi.MajorScaleAndKey":{"args":[],"type":"{ key : String.String, notes : List.List ( Basics.Int, Games.TheoryApi.Note ) }"},"Games.TheoryApi.Mode":{"args":[],"type":"{ mode : String.String, formula : List.List String.String }"},"Games.TheoryApi.Note":{"args":[],"type":"String.String"},"Games.TheoryApi.TheoryDb":{"args":[],"type":"{ majorScalesAndKeys : List.List Games.TheoryApi.MajorScaleAndKey, modes : List.List Games.TheoryApi.Mode, allNotes : List.List Games.TheoryApi.Note, chords : List.List Games.TheoryApi.Chord }"},"Url.Url":{"args":[],"type":"{ protocol : Url.Protocol, host : String.String, port_ : Maybe.Maybe Basics.Int, path : String.String, query : Maybe.Maybe String.String, fragment : Maybe.Maybe String.String }"}},"unions":{"Main.Msg":{"args":[],"tags":{"UrlChanged":["Url.Url"],"LinkClicked":["Browser.UrlRequest"],"NoteExerciseMsg":["Games.NoteExercise.Msg"],"ModeExerciseMsg":["Games.ModeExercise.Msg"],"ChordExerciseMsg":["Games.ChordExercise.Msg"],"FretboardGameMsg":["Games.FretboardGame.Msg"],"StopwatchMsg":["Games.Stopwatch.Msg"],"GotTheoryDb":["Result.Result Http.Error Games.TheoryApi.TheoryDb"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Games.ChordExercise.Msg":{"args":[],"tags":{"KeyAndScaleChosen":["Games.TheoryApi.MajorScaleAndKey"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"RandomChordPicked":["Basics.Int"],"ChordChosen":["Games.TheoryApi.Chord"],"GameModeChosen":["Games.ChordExercise.GameMode"],"AddToChordBuilderList":["String.String"],"SubmitBuiltChord":[],"ResetChordGuesser":[],"ResetChordBuilder":[],"GoBack":[],"Undo":[]}},"Games.FretboardGame.Msg":{"args":[],"tags":{"KeyDown":["String.String"],"KeyUp":["String.String"],"Tick":["Time.Posix"],"SetIsOnPage":["Basics.Bool"]}},"Games.ModeExercise.Msg":{"args":[],"tags":{"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"ChooseGame":["Games.ModeExercise.GameMode"],"ChooseKey":["Games.TheoryApi.MajorScaleAndKey"],"PickRandomMode":["Basics.Int"],"ModeGuessed":["String.String"],"RandomizeMode":[],"ResetWrong":[],"GoBack":[],"AddToModeBuilderList":["String.String"],"SubmitBuiltMode":[],"Submitted":["Games.ModeExercise.SubmitResult"],"Undo":[],"Reset":[]}},"Games.NoteExercise.Msg":{"args":[],"tags":{"NumberClicked":["Basics.Int"],"GotTheoryDb":["Games.TheoryApi.TheoryDb"],"Shuffle":[],"Shuffled":["List.List ( Basics.Int, Games.TheoryApi.Note )"],"KeyChosen":["Games.TheoryApi.MajorScaleAndKey"],"StopwatchMsg":["Games.Stopwatch.Msg"],"Reset":["Basics.Bool"]}},"Games.Stopwatch.Msg":{"args":[],"tags":{"Tick":["Time.Posix"],"Start":[],"Stop":[]}},"Url.Protocol":{"args":[],"tags":{"Http":[],"Https":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Browser.UrlRequest":{"args":[],"tags":{"Internal":["Url.Url"],"External":["String.String"]}},"Basics.Bool":{"args":[],"tags":{"True":[],"False":[]}},"Games.ChordExercise.GameMode":{"args":[],"tags":{"ChordGuesserGame":[],"ChordBuilderGame":[]}},"Games.ModeExercise.GameMode":{"args":[],"tags":{"ModeGuesserGame":[],"ModeBuilderGame":[]}},"Time.Posix":{"args":[],"tags":{"Posix":["Basics.Int"]}},"Games.ModeExercise.SubmitResult":{"args":[],"tags":{"Win":[],"Lose":[]}}}}})}});}(this));

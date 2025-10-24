@@ -6,6 +6,7 @@ import Games.ChordExercise as ChordExercise
 import Games.FretboardGame as FretboardGame
 import Games.ModeExercise as ModeExercise
 import Games.NoteExercise as NoteExercise
+import Games.Stopwatch as Stopwatch
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
@@ -26,10 +27,8 @@ type alias Model =
     , modeExerciseModel : ModeExercise.Model
     , chordExerciseModel : ChordExercise.Model
     , fretboardGameModel : FretboardGame.Model
+    , stopwatchModel : Stopwatch.Model
     , isOnFretboardPage : Bool
-    , running : Bool
-    , timerInMs : Int
-    , test : Float
     }
 
 
@@ -40,10 +39,8 @@ type Msg
     | ModeExerciseMsg ModeExercise.Msg
     | ChordExerciseMsg ChordExercise.Msg
     | FretboardGameMsg FretboardGame.Msg
+    | StopwatchMsg Stopwatch.Msg
     | GotTheoryDb (Result Http.Error TheoryApi.TheoryDb)
-    | Tick Posix
-    | Start
-    | Stop
 
 
 type Route
@@ -70,16 +67,11 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.running then
-        Sub.batch
-            [ Sub.map FretboardGameMsg (FretboardGame.subscriptions model.fretboardGameModel)
-            , Time.every 10 Tick
-            ]
-
-    else
-        Sub.batch
-            [ Sub.map FretboardGameMsg (FretboardGame.subscriptions model.fretboardGameModel)
-            ]
+    Sub.batch
+        [ Sub.map FretboardGameMsg (FretboardGame.subscriptions model.fretboardGameModel)
+        , Sub.map StopwatchMsg (Stopwatch.subscriptions model.stopwatchModel)
+        , Sub.map NoteExerciseMsg (NoteExercise.subscriptions model.noteExerciseModel)
+        ]
 
 
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -100,6 +92,9 @@ init flags url key =
 
         ( fretboardGameModel, fretboardGameCmd ) =
             FretboardGame.init ()
+
+        stopwatchModel =
+            Stopwatch.init
     in
     ( { url = url
       , key = key
@@ -110,9 +105,7 @@ init flags url key =
       , fretboardGameModel = fretboardGameModel
       , theoryDb = RemoteData.Loading
       , isOnFretboardPage = False
-      , running = False
-      , timerInMs = 0
-      , test = 1
+      , stopwatchModel = stopwatchModel
       }
     , Cmd.batch
         [ Cmd.map
@@ -139,6 +132,12 @@ routeParser =
         , UP.map Home UP.top
         , UP.map Game (UP.s "game" </> UP.string)
         ]
+
+
+startGame : msg -> Html msg
+startGame msg =
+    Html.div []
+        [ Html.button [ HE.onClick msg ] [ Html.text "Start" ] ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -209,6 +208,15 @@ update msg model =
             , Cmd.map FretboardGameMsg cmd
             )
 
+        StopwatchMsg subMsg ->
+            let
+                ( updatedStopwatch, cmd ) =
+                    Stopwatch.update subMsg model.stopwatchModel
+            in
+            ( { model | stopwatchModel = updatedStopwatch }
+            , Cmd.map StopwatchMsg cmd
+            )
+
         GotTheoryDb (Ok db) ->
             let
                 ( updatedNoteModel, noteCmd ) =
@@ -236,15 +244,6 @@ update msg model =
         GotTheoryDb (Err error) ->
             ( model, Cmd.none )
 
-        Tick _ ->
-            ( { model | timerInMs = model.timerInMs + 100 }, Cmd.none )
-
-        Start ->
-            ( { model | running = True, timerInMs = model.timerInMs + 10000 }, Cmd.none )
-
-        Stop ->
-            ( { model | running = False }, Cmd.none )
-
 
 view : Model -> Browser.Document Msg
 view model =
@@ -252,12 +251,6 @@ view model =
     , body =
         [ Html.div [ HA.class "wrapper" ]
             [ viewHeader model.url.path
-            , Html.text <| String.fromFloat (toFloat model.timerInMs / 100)
-            , if not model.running then
-                Html.button [ HE.onClick Start ] [ Html.text "Start" ]
-
-              else
-                Html.button [ HE.onClick Stop ] [ Html.text "Stop" ]
             , Html.main_ [ HA.class "content-container" ]
                 [ viewRoute model
                 ]
@@ -302,21 +295,25 @@ viewRoute model =
             Html.div [] [ Html.text "You are at the home page" ]
 
         Game gameName ->
-            case gameName of
-                "note-exercise" ->
-                    Html.map NoteExerciseMsg (NoteExercise.view model.noteExerciseModel)
+            let
+                gameView =
+                    case gameName of
+                        "note-exercise" ->
+                            Html.map NoteExerciseMsg (NoteExercise.view model.noteExerciseModel)
 
-                "mode-exercise" ->
-                    Html.map ModeExerciseMsg (ModeExercise.view model.modeExerciseModel)
+                        "mode-exercise" ->
+                            Html.map ModeExerciseMsg (ModeExercise.view model.modeExerciseModel)
 
-                "chord-exercise" ->
-                    Html.map ChordExerciseMsg (ChordExercise.view model.chordExerciseModel)
+                        "chord-exercise" ->
+                            Html.map ChordExerciseMsg (ChordExercise.view model.chordExerciseModel)
 
-                "fretboard-game" ->
-                    Html.map FretboardGameMsg (FretboardGame.view model.fretboardGameModel)
+                        "fretboard-game" ->
+                            Html.map FretboardGameMsg (FretboardGame.view model.fretboardGameModel)
 
-                _ ->
-                    Html.text ("Unknown game: " ++ gameName)
+                        _ ->
+                            Html.text ("Unknown game: " ++ gameName)
+            in
+            Html.div [] [ gameView ]
 
         NotFound ->
             Html.div []

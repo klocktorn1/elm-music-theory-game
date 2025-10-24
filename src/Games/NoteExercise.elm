@@ -1,5 +1,6 @@
 port module Games.NoteExercise exposing (..)
 
+import Games.Stopwatch as Stopwatch
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
@@ -36,8 +37,9 @@ type alias Model =
     , errorMessage : Maybe String
     , exerciseStep : Int
     , noteAndOriginalIndexTuplePrompted : Maybe ( Int, TheoryApi.Note )
+    , stopwatch : Stopwatch.Model
+    , showStopwatch : Bool
     , result : Maybe GameFinished
-  
     }
 
 
@@ -58,9 +60,9 @@ type Msg
     | GotTheoryDb TheoryApi.TheoryDb
     | Shuffle
     | Shuffled (List ( Int, TheoryApi.Note ))
-    | ChooseKey TheoryApi.MajorScaleAndKey
+    | KeyChosen TheoryApi.MajorScaleAndKey
+    | StopwatchMsg Stopwatch.Msg
     | Reset Bool
-
 
 
 type GameFinished
@@ -76,6 +78,11 @@ saveWins numberOfWins =
     Encode.int numberOfWins
         |> Encode.encode 0
         |> sendToLocalStorage
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.map StopwatchMsg (Stopwatch.subscriptions model.stopwatch)
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -94,6 +101,8 @@ init flags =
       , errorMessage = Nothing
       , exerciseStep = 0
       , noteAndOriginalIndexTuplePrompted = Nothing
+      , stopwatch = Stopwatch.init
+      , showStopwatch = False
       , result = Nothing
       }
     , Cmd.none
@@ -153,7 +162,7 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        ChooseKey scale ->
+        KeyChosen scale ->
             let
                 newModel =
                     ( { model
@@ -164,6 +173,7 @@ update msg model =
                         , wrongPair = Nothing
                         , numberOfWrongs = 0
                         , gameOver = False
+                        , showStopwatch = True
                         , noteAndOriginalIndexTuplePrompted = Nothing
                       }
                     , Random.generate Shuffled (RandomList.shuffle scale.notes)
@@ -198,7 +208,12 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
- 
+        StopwatchMsg subMsg ->
+            let
+                ( updatedStopwatch, cmd ) =
+                    Stopwatch.update subMsg model.stopwatch
+            in
+            ( { model | stopwatch = updatedStopwatch }, Cmd.map StopwatchMsg cmd )
 
 
 view : Model -> Html Msg
@@ -208,6 +223,7 @@ view model =
         , Html.div [] [ Html.text "Pick a major scale:" ]
         , Html.text "Pick a key. Match the note with the corresponding number in that scale (C1 D2 E3 F4 G5 A6 B7 in C for example)"
         , viewKeysOrError model
+        , Html.map StopwatchMsg (Stopwatch.view model.stopwatch)
         , case model.maybeChosenScale of
             Just scale ->
                 Html.div []
@@ -302,7 +318,7 @@ viewKeysOrError model =
 
 viewKeyButtons : TheoryApi.MajorScaleAndKey -> Html Msg
 viewKeyButtons key =
-    Html.div [ HA.class "custom-button", HE.onClick (ChooseKey key) ]
+    Html.div [ HA.class "custom-button", HE.onClick (KeyChosen key) ]
         [ Html.text key.key
         ]
 
