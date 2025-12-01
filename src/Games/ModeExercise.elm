@@ -1,17 +1,15 @@
 module Games.ModeExercise exposing (..)
 
 import Array
-import Browser
 import Games.NoteExercise exposing (Msg(..))
 import Games.TheoryApi as TheoryApi
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
-import Http
-import List.Extra as ListExtra
 import Process
 import Random
 import Task
+import Games.NoteBuilder as NoteBuilder
 
 
 
@@ -266,8 +264,8 @@ viewModeBuilderGame model =
         Just chosenKey ->
             Html.div []
                 [ Html.p [] [ Html.text ("Please build the " ++ chosenKey.key ++ " " ++ model.randomizedMode.mode ++ " mode") ]
-                , viewNotes model chosenKey.key
-                , Html.p [ HA.class "user-built-mode-notes-container" ]
+                , NoteBuilder.viewNotes AddToModeBuilderList model.allNotes chosenKey.key
+                , Html.p [ HA.class "user-built-notes-container" ]
                     (List.reverse (List.map viewUserBuiltMode model.userBuiltMode))
                 , if model.userBuiltMode == [] then
                     Html.div [] []
@@ -286,39 +284,7 @@ viewUserBuiltMode note =
     Html.div [] [ Html.text (note ++ " ") ]
 
 
-viewNotes : Model -> String -> Html Msg
-viewNotes model chosenKey =
-    case model.allNotes of
-        Just allNotes ->
-            Html.div []
-                [ Html.div [ HA.class "note-builder-container" ] (List.map viewNoteButtons (viewNotesWithSharps (rotateList chosenKey allNotes)))
-                , Html.div [ HA.class "note-builder-container" ] (List.map viewNoteButtons (viewNotesWithoutAccidentals (rotateList chosenKey allNotes)))
-                , Html.div [ HA.class "note-builder-container" ] (List.map viewNoteButtons (viewNotesWithFlats (rotateList chosenKey allNotes)))
-                ]
 
-        Nothing ->
-            Html.div [] [ Html.text "No notes" ]
-
-
-viewNotesWithSharps : List String -> List String
-viewNotesWithSharps allNotes =
-    List.filter (\note -> String.slice 1 2 note == "#") allNotes
-
-
-viewNotesWithoutAccidentals : List String -> List String
-viewNotesWithoutAccidentals allNotes =
-    List.filter (\note -> String.length note == 1) allNotes
-
-
-viewNotesWithFlats : List String -> List String
-viewNotesWithFlats allNotes =
-    List.filter (\note -> String.slice 1 2 note == "b") allNotes
-
-
-viewNoteButtons : String -> Html Msg
-viewNoteButtons note =
-    Html.button [ HA.class "custom-button", HE.onClick (AddToModeBuilderList note) ]
-        [ Html.text note ]
 
 
 viewModeGuesserGame : Model -> Html Msg
@@ -415,23 +381,6 @@ viewKeyButtons key =
             ]
         ]
 
-
-rotateList : String -> List String -> List String
-rotateList note allNotes =
-    case ListExtra.findIndex (\noteFromList -> note == noteFromList) allNotes of
-        Just index ->
-            let
-                ( start, end ) =
-                    ListExtra.splitAt index allNotes
-            in
-            end ++ start
-
-        Nothing ->
-            []
-
-
-
--- if note not found, return original
 
 
 viewConstructMode : String -> Html Msg

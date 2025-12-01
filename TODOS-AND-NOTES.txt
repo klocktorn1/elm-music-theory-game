@@ -11,7 +11,13 @@
 flashing wrong made with chatgpt, should try to understand this better. maybe rewrite it from memory
 
 
-
+For all games:
+   a timer maybe? 
+   -> user presses exercise in header
+   -> render start button (maybe info on how to play game also)
+   -> user presses start, render game
+   -> start timer
+   -> when user presses finish button or exits game, stats are saved. (time, score, mistakes) 
 
 
 chord game
@@ -19,6 +25,8 @@ chord game
 -> random chord (either Cmaj7, Cm7, C7, Cm7b5 ) is rendered 
 -> prompt: What chord is this? C E G B
 -> user picks which they think is correct
+
+
 
 rendering random chord:
 -> needs the key chosen : chosenKeyAndScale : Maybe TheoryApi.MajorScaleAndKey
@@ -29,3 +37,9 @@ chord builder logic
    major-scale.notes contains all the notes of the chosen key's major scale. i can build a 
    major chord for each key by specifying the notes at index 0, 2, 4, 6 CDEFGAB = C E G B
    new list of notes ["C", "E", "G", "B"] chord formulas 
+
+
+
+   postgreSql, prisma for db graphql
+
+   maybe shoelace css 
